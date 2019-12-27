@@ -27,13 +27,14 @@
 
 
 void *readTokens(char *buffer,unsigned int amount,void *ptr);
-void markUndefLabel(const uint8_t *data);
-void markDefLabel(const uint8_t *data,int org);
+void markLabelOffset(const uint8_t *name,int value);
+void markDefLabel(uint8_t *name,int val,ti_var_t fp);
+void markNeededLabel(const char *name);
 int assemble(const char *inFile, char *outFile);
 uint8_t *getEmitData(const char *name);
 uint8_t *checkIncludes(const char *name);
 uint8_t *searchIncludeFile(const char *fname, const char *cname);
-uint8_t *emitNumber(const char *name,uint8_t bytes);
+uint8_t *checkWordStack(const char *name);
 int includeFile(const char *fname);
 
 void error(const char *str,const char *word);
@@ -54,14 +55,19 @@ typedef struct __include_entry_t {
 
 const char *TEMP_FILE = "_BASMtmp";
 
+extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
+uint8_t *O_FILE_PTR;
+char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0xD1A881; //usermem
 #define MAX_STACK 2048
-int *DATA_STACK[MAX_STACK];
+int DATA_STACK[MAX_STACK];
+uint8_t *WORD_STACK;
 int DATA_SP = 0;
+int WORD_SP = 0;
 char *ErrorCode = 0;
-int O_FILE_ORG;
+int O_FILE_ORG,I_FILE_ORG;
 
 include_entry_t *first_include;
 include_entry_t *last_include;
@@ -109,22 +115,51 @@ int assemble(const char *inFile, char *outFile){
 	ti_var_t fp;
 	uint8_t *ptr;
 	uint8_t *max;
-	uint8_t buffer[512];
+	uint8_t buf[512];
 
 	if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
 		return 0;
 	}
-	ptr = ti_GetDataPtr(fp);
+	I_FILE_ORG = (int)(ptr = ti_GetDataPtr(fp));
 	max = ptr+ti_GetSize(fp);
+	ti_Close(fp);
+
+	fp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
+	ErrorCode = 0;
+	while (ptr<max){
+		if (os_GetCSC()==sk_Clear){
+			ErrorCode = "UserBreakError";
+			break;
+		} else if (((uint8_t*)ptr)[0]==0x3F){
+			ptr++;
+		} else {
+			uint8_t c;
+			int i=0;
+			ptr=readTokens(&buf,min(511,max-ptr),ptr);
+			upperCaseStr(&buf);
+			do {i++;} while ((c=buf[i])!=':' && c);
+			if (c){
+				uint8_t *data = malloc(i+1);
+				memcpy(data,&buf,i);
+				data[i]=0;
+				markDefLabel(data,0,fp);
+			}
+		}
+	}
+	if (ErrorCode){
+		return 0;
+	}
+	
 	ti_Close(fp);
 
 	fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
 
+	ptr = (uint8_t*)I_FILE_ORG;
 	assembling_line = 1;
 	while (ptr<max) {
 		uint8_t c;
 		uint8_t *edata;
-		O_FILE_ORG = (int)ti_GetDataPtr(fp)-ti_Tell(fp);
+		O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-ti_Tell(fp);
 
 
 		if (os_GetCSC()==sk_Clear){
@@ -135,29 +170,34 @@ int assemble(const char *inFile, char *outFile){
 		if (((uint8_t*)ptr)[0]==0x3F){
 			ptr++;
 		} else {
-			ptr=readTokens(&buffer,min(511,max-ptr),ptr);
-			upperCaseStr(&buffer);
+			ptr=readTokens(&buf,min(511,max-ptr),ptr);
+			upperCaseStr(&buf);
 
-			if (c = *buffer){
+			if (c = *buf){
 				if (c>=0x41 && c<=0x5A){
-					if (edata = getEmitData(&buffer)){
+					if (edata = getEmitData(&buf)){
 						write(edata+1,edata[0],fp);
-					} else if (edata = checkIncludes(&buffer)) {
+					} else if (edata = checkIncludes(&buf)) {
 						write(edata+1,edata[0],fp);
 					} else {
 						if (ErrorCode){
 							error(ErrorCode,"");
 						} else {
-							error("Undefined word",trimWord(&buffer));
+							if (edata = checkWordStack(&buf)){
+								write(edata+1,edata[0],fp);
+							} else {
+								int i;
+								uint8_t *ptr=&buf;
+								while ((c=*ptr)!=':' && c) {ptr++;}
+								if (c){
+									markLabelOffset(&buf,ti_Tell(fp));
+								}
+							}
 						}
 						break;
 					}
-				} else if (c>=0x30 && c<=0x39) {
-					if (edata=emitNumber(&buffer,1)){
-						write(edata+1,edata[0],fp);
-					}
 				} else {
-					error("Syntax",trimWord(&buffer));
+					error("Syntax",trimWord(&buf));
 					break;
 				}
 			} else {
@@ -199,38 +239,35 @@ void *readTokens(char *buffer,unsigned int amount,void *ptr){
 	return ptr;
 }
 
-
-/* byte (data+0): V&0x03 is number of bytes to emit. 
- *                V&0x80 marks value defined, otherwise the assembler needs to calculate it. 
- *                If that fails, then throw an undef'd word error.
- * word (data+1): offset in output file, to put value once computed.
- * long (data+3): stores computed value.
- * word (data+6): offset in source file, expression of value to compute.
-*/
-
-void markUndefLabel(const uint8_t *data){
-	memcpy((DATA_STACK[DATA_SP++] = malloc(10)),data,10);
-}
-
-void markDefLabel(const uint8_t *data,int org){
-	void *ptr = 0;
-	if (data[0]&0x80){
-		if (data[0]&0x03){
-			memcpy(ptr,data+1,2);
-			memcpy(ptr+O_FILE_ORG,data+3,data[0]&0x03);
-			free(data);
-		}
-	} else {
-		int val;
-		memcpy(ptr,data+6,2);
-		val = getNumber(&ptr);
-		if (!ErrorCode){
-			ptr=0;
-			memcpy(ptr,data+1,2);
-			memcpy(ptr+O_FILE_ORG,&val,data[0]&0x03);
-			free(data);
+void markNeededLabel(const char *name){
+	int i;
+	uint8_t *data;
+	uint8_t *value;
+	i = WORD_SP;
+	while (i-=8){
+		data = &WORD_STACK[i];
+		if (!strcmp(((char*)data),name)){
+			memcpy(&data+6,&value,2);
 		}
 	}
+}
+
+void markLabelOffset(const uint8_t *name,int value){
+	int i;
+	uint8_t *data;
+	i = WORD_SP;
+	while (i-=8){
+		data = &WORD_STACK[i];
+		if (!strcmp(((char*)data),name)){
+			memcpy(&data+3,&value,3);
+		}
+	}
+}
+
+void markDefLabel(uint8_t *name,int val,ti_var_t fp){
+	ti_Write(&name,3,1,fp);
+	ti_Write(&val,3,1,fp);
+	ti_Write("\xFF\xFF",2,1,fp);
 }
 
 
@@ -276,18 +313,9 @@ uint8_t *getEmitData(const char *name){
 	}
 }
 
-uint8_t *emitNumber(const char *name,uint8_t bytes){
-	uint8_t buf[4];
-	int number = getNumber(&name);
-	memcpy(&buf[1],&number,3);
-	buf[0] = bytes;
-	return &buf;
-}
-
 uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	ti_var_t fp;
 	uint8_t *ptr;
-	char *nptr;
 	int i,elen;
 	if (fp = ti_Open(fname,"r")){
 		ptr = ti_GetDataPtr(fp);
@@ -300,17 +328,33 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	}
 	elen = (int)ptr[32];
 	i = min(cname[0]-0x41,cname[0]-0x61);
-	nptr = (char*)((int)ptr[i*3+35]);
-	while (*nptr){
-		
-		nptr++;
+	ptr+=((uint16_t)ptr[i*2+35]);
+	while (*ptr){
+		if (!strncmp(cname,ptr,elen)){
+			return ptr+strnlen(ptr,elen);
+		} else {
+			ptr+=strnlen(ptr,elen)+4;
+		}
+	}
+	return 0;
+}
+
+uint8_t *checkWordStack(const char *name){
+	int i = WORD_SP;
+	while (i--){
+		if (!strcmp(WORD_STACK[i],name)){
+			uint8_t buf[4];
+			buf[0]=3;
+			buf[1]=buf[2]=buf[3]=0;
+			return &buf;
+		}
 	}
 	return 0;
 }
 
 uint8_t *checkIncludes(const char *name){
 	include_entry_t *ent;
-	
+
 	ent = first_include;
 	do {
 		uint8_t *rv;

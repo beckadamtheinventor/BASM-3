@@ -1,10 +1,11 @@
 
 extern uint8_t ADDR_BYTES;
 extern char *ErrorCode;
+extern char *LAST_LINE;
 extern unsigned int ORIGIN;
 
-extern void markUndefLabel(const uint8_t *data);
 extern uint8_t *checkIncludes(const char *name);
+extern void markNeededLabel(const char *name);
 
 uint8_t *OpcodesA(const char *line);
 uint8_t *OpcodesB(const char *line);
@@ -25,6 +26,7 @@ uint8_t *OpcodesT(const char *line);
 uint8_t *OpcodesX(const char *line);
 uint8_t *OpcodesNone(const char *line);
 
+int getNumberWrapper(char **line);
 int getNumber(char **line);
 int isNumber(const char *line);
 int isIrOff(const char *line);
