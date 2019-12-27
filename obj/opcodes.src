@@ -1,0 +1,6285 @@
+; Zilog eZ80 ANSI C Compiler Release 3.4
+; -optsize -noreduceopt -nomodsect -peephole -globalopt
+; -localcse -const=ROM 
+	FILE	"SRC\OPCODES.C"
+	.assume ADL=1
+	SEGMENT BSS
+_buffer:
+	DS	16
+;    1	
+;    2	#include <stdbool.h>
+;    3	#include <stddef.h>
+;    4	#include <stdint.h>
+;    5	#include <tice.h>
+;    6	
+;    7	#include <math.h>
+;    8	#include <stdio.h>
+;    9	#include <stdlib.h>
+;   10	#include <string.h>
+;   11	
+;   12	#include "opcodes.h"
+;   13	
+;   14	#define buffer_len 16
+;   15	uint8_t buffer[buffer_len];
+	SEGMENT CODE
+;   16	
+;   17	void clearBuffer(void){
+_clearBuffer:
+;   18		memset(&buffer,0,buffer_len);
+	LD	BC,16
+	PUSH	BC
+	LD	BC,0
+	PUSH	BC
+	LD	BC,_buffer
+	PUSH	BC
+	CALL	_memset
+	POP	BC
+	POP	BC
+	POP	BC
+;   19	}
+	RET	
+
+
+;**************************** _clearBuffer ***************************
+;Name                         Addr/Register   Size   Type
+;_buffer                             STATIC     16   variable
+;_memset                             IMPORT  -----   function
+
+
+; Stack Frame Size: 6 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;   20	
+;   21	uint8_t *OpcodesA(const char *line){
+_OpcodesA:
+	LD	HL,-3
+	CALL	__frameset
+;   22		if (!strncmp(line,"ADD ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__1
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_20
+;   23			if (checkRRArg(line+4,0x09)) {
+	LD	BC,9
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_4
+;   24				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   25			} else if (checkRArg(line+4,0x80)){
+L_4:
+	LD	BC,128
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_2
+;   26				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   27			} else {
+L_2:
+;   28				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_22
+;   29			}
+;   30		} else if (!strncmp(line,"ADC ",4)) {
+L_20:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__5
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_18
+;   31			if (checkRRArg(line+4,0x4A)){
+	LD	BC,74
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_11
+;   32				if (buffer[1]==0xDD || buffer[1]==0xFD){
+	LD	BC,_buffer
+	INC	BC
+	LD	(IX+-3),BC
+	LD	HL,BC
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,221
+	SBC	HL,BC
+	JR	Z,L_6
+	LD	HL,(IX+-3)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,253
+	SBC	HL,BC
+	JR	NZ,L_7
+L_6:
+;   33					return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_22
+;   34				} else {
+L_7:
+;   35					buffer[2] = buffer[1]+0x41;
+	LD	HL,(IX+-3)
+	LD	A,(HL)
+	LD	HL,_buffer+2
+	ADD	A,65
+	LD	(HL),A
+;   36					buffer[1] = 0xED;
+	LD	HL,(IX+-3)
+	LD	(HL),237
+;   37				}
+;   38				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   39			} else if (checkRArg(line+4,0x88)){
+L_11:
+	LD	BC,136
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_21
+;   40				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   41			}
+;   42		} else if (!strncmp(line,"AND ",4)) {
+L_18:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__11
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_21
+;   43			if (isNumber(line+4)){
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_15
+;   44				line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;   45				buffer[0]=2;
+;   46				buffer[1]=0xE6;
+;   47				buffer[2]=getNumber(&line);
+	PEA	IX+6
+	LD	A,2
+	LD	(_buffer),A
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),230
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+2),L
+;   48				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   49			} else if (checkRArg(line+4,0xA0)){
+L_15:
+	LD	BC,160
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_13
+;   50				return &buffer;
+	LD	HL,_buffer
+	JR	L_22
+;   51			} else {
+L_13:
+;   52				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_22
+;   53			}
+;   54		}
+L_21:
+	OR	A,A
+;   55		return 0;
+	SBC	HL,HL
+;   56	}
+L_22:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesA ***************************
+;Name                         Addr/Register   Size   Type
+;_getNumber                          IMPORT  -----   function
+;_isNumber                           IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_checkRArg                          IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRRArg                         IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;G_0                                   IX-3      3   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 12 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__1:
+	DB	"ADD "
+	DB	0
+L__5:
+	DB	"ADC "
+	DB	0
+L__11:
+	DB	"AND "
+	DB	0
+	SEGMENT CODE
+;   57	
+;   58	uint8_t *OpcodesB(const char *line){
+_OpcodesB:
+	LD	HL,-2
+	CALL	__frameset
+;   59		if (!strncmp(line,"BIT ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__16
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_29
+;   60			uint8_t r,bit;
+;   61			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;   62			bit=getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-2),L
+;   63			if (bit<=7){
+	LD	A,7
+	CP	A,(IX+-2)
+	JR	C,L_27
+;   64				if (r=isIrOff(line)){
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-1),L
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	Z,L_25
+;   65					buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;   66					buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-1)
+;   67					buffer[2]=0xCB;
+;   68					buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;   69					buffer[4]=0x46+bit;
+	LD	A,(IX+-2)
+	LEA	HL,IY+4
+	ADD	A,70
+	LD	(HL),A
+;   70				} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_27
+L_25:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	Z,L_27
+;   71					buffer[0]=2;
+	LD	A,2
+;   72					buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;   73					buffer[2]=0x40+r+bit<<3;
+	LD	A,(IX+-1)
+	ADD	A,64
+	LD	HL,_buffer+2
+	ADD	A,(IX+-2)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	(HL),A
+;   74					return &buffer;
+	LD	HL,_buffer
+	JR	L_30
+;   75				}
+;   76			}
+L_27:
+;   77			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_30
+;   78		}
+L_29:
+	OR	A,A
+;   79		return 0;
+	SBC	HL,HL
+;   80	}
+L_30:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesB ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_getIrOff                           IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_isIrOff                            IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;bit                                   IX-2      1   variable
+;r                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 11 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__16:
+	DB	"BIT "
+	DB	0
+	SEGMENT CODE
+;   81	
+;   82	uint8_t *OpcodesC(const char *line){
+_OpcodesC:
+	CALL	__frameset0
+;   83		if (!strncmp(line,"CP ",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__22
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_47
+;   84			if (isNumber(line+3)){
+	LD	IY,(IX+6)
+	LEA	BC,IY+3
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_33
+;   85				line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;   86				buffer[0]=2;
+;   87				buffer[1]=0xFE;
+;   88				buffer[2] = getNumber(&line);
+	PEA	IX+6
+	LD	A,2
+	LD	(_buffer),A
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),254
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+2),L
+;   89				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;   90			} else if (checkRArg(line+3,0xB8)){
+L_33:
+	LD	BC,184
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+3
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_48
+;   91				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;   92			}
+;   93		} else if (!strncmp(line,"CPL",3)){ 
+L_47:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__26
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_45
+;   94			buffer[0]=1;
+	LD	A,1
+;   95			buffer[1]=0x2F;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),47
+;   96			return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;   97		} else if (!strncmp(line,"CCF",3)){
+L_45:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__28
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_43
+;   98			buffer[0]=1;
+	LD	A,1
+;   99			buffer[1]=0x3F;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),63
+;  100			return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;  101		} else {
+L_43:
+;  102			buffer[0]=2;
+	LD	A,2
+;  103			buffer[1]=0xED;
+	LD	HL,_buffer
+;  104			if (!strncmp(line,"CPIR",4)){
+	LD	BC,4
+	PUSH	BC
+	INC	HL
+	LD	(_buffer),A
+	LD	BC,L__30
+	PUSH	BC
+	LD	(HL),237
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_40
+;  105				buffer[2]=0xB1;
+	LD	HL,_buffer+2
+	LD	(HL),177
+;  106				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;  107			} else if (!strncmp(line,"CPDR",4)){
+L_40:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__32
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_38
+;  108				buffer[2]=0xB9;
+	LD	HL,_buffer+2
+	LD	(HL),185
+;  109				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;  110			} else if (!strncmp(line,"CPI",3)){
+L_38:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__34
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_36
+;  111				buffer[2]=0xA1;
+	LD	HL,_buffer+2
+	LD	(HL),161
+;  112				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;  113			} else if (!strncmp(line,"CPD",3)){
+L_36:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__36
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_41
+;  114				buffer[2]=0xA9;
+	LD	HL,_buffer+2
+	LD	(HL),169
+;  115				return &buffer;
+	LD	HL,_buffer
+	JR	L_49
+;  116			}
+L_41:
+;  117			buffer[0]=0;
+	XOR	A,A
+	LD	(_buffer),A
+;  118		}
+L_48:
+	OR	A,A
+;  119		return 0;
+	SBC	HL,HL
+;  120	}
+L_49:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesC ***************************
+;Name                         Addr/Register   Size   Type
+;_checkRArg                          IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_isNumber                           IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__22:
+	DB	"CP "
+	DB	0
+L__26:
+	DB	"CPL"
+	DB	0
+L__28:
+	DB	"CCF"
+	DB	0
+L__30:
+	DB	"CPIR"
+	DB	0
+L__32:
+	DB	"CPDR"
+	DB	0
+L__34:
+	DB	"CPI"
+	DB	0
+L__36:
+	DB	"CPD"
+	DB	0
+	SEGMENT CODE
+;  121	
+;  122	uint8_t *OpcodesD(const char *line){
+_OpcodesD:
+	LD	HL,-410
+	CALL	__frameset
+;  123		uint8_t o;
+;  124		if (!strncmp(line,"DEC ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__39
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_85
+;  125			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  126			if (checkRRArg(line,0x0B)){
+	LD	BC,11
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_56
+;  127				return &buffer;
+	LD	HL,_buffer
+	JR	L_87
+;  128			} else if ((o = getRArgN(line))!=0xFF){
+L_56:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-4),A
+	CP	A,255
+	JR	Z,L_54
+;  129				if (buffer[0]==1){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,1
+	SBC	HL,BC
+	JR	NZ,L_51
+;  130					buffer[1]=o<<3+0x05;
+	LD	B,8
+	LD	A,(IX+-4)
+	CALL	__bshl
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),A
+;  131				} else {
+	JR	L_52
+L_51:
+;  132					buffer[2]=o<<3+0x05;
+	LD	B,8
+	LD	A,(IX+-4)
+	LD	HL,_buffer+2
+	CALL	__bshl
+	LD	(HL),A
+;  133				}
+L_52:
+;  134				return &buffer;
+	LD	HL,_buffer
+	JR	L_87
+;  135			} else {
+L_54:
+;  136				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_87
+;  137			}
+;  138		} else if (!strncmp(line,"DJNZ ",5)){
+L_85:
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__44
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_83
+;  139			int num;
+;  140			line+=5;
+	LD	IY,(IX+6)
+	LEA	IY,IY+5
+	LD	(IX+6),IY
+;  141			num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-7),HL
+;  142			if (num<-0x80 || num>=0x80){
+	LD	BC,16777088
+	OR	A,A
+	SBC	HL,BC
+	JP	M,L_58
+	LD	BC,128
+	LD	HL,(IX+-7)
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	M,L_59
+L_58:
+;  143				ErrorCode = "DJNZ Offset out of range";
+	LD	BC,L__48
+	LD	(_ErrorCode),BC
+	OR	A,A
+;  144				return 0;
+	SBC	HL,HL
+	JR	L_87
+;  145			}
+L_59:
+;  146			buffer[0]=2;
+	LD	A,2
+;  147			buffer[1]=0x10;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),16
+;  148			buffer[2]=num;
+	LD	HL,_buffer+2
+	LD	A,(IX+-7)
+	LD	(HL),A
+;  149		} else if (!strncmp(line,"DAA",3)){
+	JR	L_86
+L_83:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__49
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_81
+;  150			buffer[0]=1;
+	LD	A,1
+;  151			buffer[1]=0x27;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),39
+;  152			return &buffer;
+	LD	HL,_buffer
+	JR	L_87
+;  153		} else if (!strncmp(line,"DB ",3)){
+L_81:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__51
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_79
+;  154			uint8_t buf2[65];
+;  155			uint8_t i=1;
+	LD	(IX+-1),1
+;  156			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  157			do {
+L_62:
+;  158				buf2[i++] = getNumber(&line);
+	LD	A,(IX+-1)
+	PEA	IX+6
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	(IY),A
+	POP	BC
+	POP	IY
+	CALL	_getNumber
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	A,(IY)
+	POP	BC
+	POP	IY
+	POP	BC
+	LD	B,L
+	UEXT	HL
+	LD	L,A
+	LD	DE,HL
+	LEA	HL,IX+-72
+	ADD	HL,DE
+	LD	(HL),B
+	INC	(IX+-1)
+;  159				if (i>=64){
+	LD	A,(IX+-1)
+	CP	A,64
+	JR	C,L_63
+;  160					ErrorCode = "DB takes at most 64 args";
+	LD	BC,L__54
+	LD	(_ErrorCode),BC
+;  161					break;
+	JR	L_64
+;  162				}
+;  163			} while (*(line-1)==',');
+L_63:
+	LD	IY,(IX+6)
+	LEA	HL,IY+-1
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,44
+	SBC	HL,BC
+	JR	Z,L_62
+L_64:
+;  164			buf2[0]=i;
+	LD	A,(IX+-1)
+	LD	(IX+-72),A
+;  165			return &buf2;
+	LEA	HL,IX+-72
+	JR	L_87
+;  166		} else if (!strncmp(line,"DW ",3)){
+L_79:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__56
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_77
+;  167			uint16_t buf2[65];
+;  168			uint8_t i=1;
+	LD	(IX+-2),1
+;  169			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  170			do {
+L_67:
+;  171				buf2[i++] = getNumber(&line);
+	LD	A,(IX+-2)
+	PEA	IX+6
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	(IY),A
+	POP	BC
+	POP	IY
+	CALL	_getNumber
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	A,(IY)
+	POP	BC
+	POP	IY
+	LD	BC,HL
+	POP	DE
+	UEXT	HL
+	LD	L,A
+	ADD	HL,HL
+	LD	DE,HL
+	LD	HL,IX
+;  172				if (i>64){
+	LD	A,64
+	PUSH	BC
+	PUSH	HL
+	LD	HL,DE
+	LD	BC,-406	; spill
+	CALL	__istix
+	POP	HL
+	POP	BC
+	LD	DE,-202
+	PUSH	BC
+	PUSH	HL
+	LD	HL,DE	; unspill
+	LD	BC,-409	; spill
+	CALL	__istix
+	POP	HL
+	LD	BC,-406	; unspill
+	PUSH	HL
+	CALL	__ildix
+	LD	BC,-406	; spill
+	CALL	__istix
+	POP	HL
+	LD	BC,-409	; unspill
+	PUSH	HL
+	CALL	__ildix
+	LD	DE,HL
+	POP	HL
+	POP	BC
+	ADD	HL,DE
+	PUSH	BC
+	LD	BC,-406	; unspill
+	PUSH	HL
+	CALL	__ildix
+	LD	DE,HL
+	POP	HL
+	POP	BC
+	ADD	HL,DE
+	LD	(HL),C
+	INC	HL
+	LD	(HL),B
+	INC	(IX+-2)
+	CP	A,(IX+-2)
+	JR	NC,L_68
+;  173					ErrorCode = "DW takes at most 64 args";
+	LD	BC,L__59
+	LD	(_ErrorCode),BC
+;  174					break;
+	JR	L_69
+;  175				}
+;  176			} while (*(line-1)==',');
+L_68:
+	LD	IY,(IX+6)
+	LEA	HL,IY+-1
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,44
+	SBC	HL,BC
+	JR	Z,L_67
+L_69:
+;  177			buf2[0]=i<<8;
+	LD	C,(IX+-2)
+	LD	B,0
+	LD	HL,BC
+	LD	H,L
+	LD	L,0
+	LD	BC,HL
+;  178			return (uint8_t*)&buf2+1;
+	LD	HL,IX
+	LD	DE,-202
+	ADD	HL,DE
+	INC	HL
+	LEA	IY,IX+-128
+	LD	(IY+-74),C
+	LD	(IY+-73),B
+	JR	L_87
+;  179		} else if (!strncmp(line,"DL ",3)){
+L_77:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__61
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_86
+;  180			unsigned int buf2[65];
+;  181			uint8_t i=1;
+	LD	(IX+-3),1
+;  182			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  183			do {
+L_72:
+;  184				buf2[i++] = getNumber(&line);
+	LD	A,(IX+-3)
+	PEA	IX+6
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	(IY),A
+	POP	BC
+	POP	IY
+	CALL	_getNumber
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-410
+	LD	BC,IX
+	ADD	IY,BC
+	LD	A,(IY)
+	POP	BC
+	POP	IY
+	LD	BC,HL
+	PUSH	BC
+	PUSH	HL
+	LD	HL,BC
+	LD	BC,-403	; spill
+	CALL	__istix
+	POP	HL
+	POP	BC
+	POP	DE
+	UEXT	HL
+	LD	L,A
+	LD	BC,HL
+	LD	HL,3
+	CALL	__imulu
+	LD	DE,HL
+	LD	HL,IX
+;  185				if (i>64){
+	LD	A,64
+	LD	BC,-397
+	ADD	HL,BC
+	ADD	HL,DE
+	LD	BC,-403	; unspill
+	PUSH	HL
+	CALL	__ildix
+	LD	BC,HL
+	POP	HL
+	LD	(HL),BC
+	INC	(IX+-3)
+	CP	A,(IX+-3)
+	JR	NC,L_73
+;  186					ErrorCode = "DL takes at most 64 args";
+	LD	BC,L__64
+	LD	(_ErrorCode),BC
+;  187					break;
+	JR	L_74
+;  188				}
+;  189			} while (*(line-1)==',');
+L_73:
+	LD	IY,(IX+6)
+	LEA	HL,IY+-1
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,44
+	SBC	HL,BC
+	JR	Z,L_72
+L_74:
+;  190			buf2[0]=i<<16;
+	LD	A,(IX+-3)
+	UEXT	HL
+	LD	L,A
+	LD	A,16
+	CALL	__ishl_b
+	LD	BC,-397
+;  191			return (uint8_t*)&buf2+2;
+	LD	IY,IX
+	LD	DE,-397
+	ADD	IY,DE
+	CALL	__istix
+	LEA	HL,IY+2
+	JR	L_87
+;  192		}
+L_86:
+	OR	A,A
+;  193		return 0;
+	SBC	HL,HL
+;  194	}
+L_87:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesD ***************************
+;Name                         Addr/Register   Size   Type
+;_ErrorCode                          IMPORT      3   variable
+;_getNumber                          IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRRArg                         IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;buf2                                IX-397    195   variable
+;buf2                                IX-202    130   variable
+;buf2                                 IX-72     65   variable
+;num                                   IX-7      3   variable
+;o                                     IX-4      1   variable
+;i                                     IX-3      1   variable
+;i                                     IX-2      1   variable
+;i                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 419 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__39:
+	DB	"DEC "
+	DB	0
+L__44:
+	DB	"DJNZ "
+	DB	0
+L__48:
+	DB	"DJNZ Offset out of range"
+	DB	0
+L__49:
+	DB	"DAA"
+	DB	0
+L__51:
+	DB	"DB "
+	DB	0
+L__54:
+	DB	"DB takes at most 64 args"
+	DB	0
+L__56:
+	DB	"DW "
+	DB	0
+L__59:
+	DB	"DW takes at most 64 args"
+	DB	0
+L__61:
+	DB	"DL "
+	DB	0
+L__64:
+	DB	"DL takes at most 64 args"
+	DB	0
+	SEGMENT CODE
+;  195	
+;  196	uint8_t *OpcodesE(const char *line){
+_OpcodesE:
+	CALL	__frameset0
+;  197		if (!strncmp(line,"EX ",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__67
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_97
+;  198			buffer[0]=1;
+	LD	A,1
+	LD	(_buffer),A
+;  199			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  200			if (!strncmp(line,"HL,DE",5)){
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__69
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_93
+;  201				buffer[1]=0xEB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),235
+;  202			} else if (!strncmp(line,"HL,(SP)",7)){
+	JR	L_94
+L_93:
+	LD	BC,7
+	PUSH	BC
+	LD	BC,L__71
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_91
+;  203				buffer[1]=0xE3;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),227
+;  204			} else if (!strncmp(line,"AF",2)) {
+	JR	L_94
+L_91:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__73
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_89
+;  205				buffer[1]=0x08;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),8
+;  206			} else {
+	JR	L_94
+L_89:
+;  207				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_99
+;  208			}
+L_94:
+;  209			return &buffer;
+	LD	HL,_buffer
+	JR	L_99
+;  210		} else if (!strncmp(line,"EXX",3)){
+L_97:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__75
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_98
+;  211			buffer[0]=1;
+	LD	A,1
+;  212			buffer[1]=0xD9;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),217
+;  213			return &buffer;
+	LD	HL,_buffer
+	JR	L_99
+;  214		}
+L_98:
+	OR	A,A
+;  215		return 0;
+	SBC	HL,HL
+;  216	}
+L_99:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesE ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__67:
+	DB	"EX "
+	DB	0
+L__69:
+	DB	"HL,DE"
+	DB	0
+L__71:
+	DB	"HL,(SP)"
+	DB	0
+L__73:
+	DB	"AF"
+	DB	0
+L__75:
+	DB	"EXX"
+	DB	0
+	SEGMENT CODE
+;  217	
+;  218	uint8_t *OpcodesF(const char *line){
+_OpcodesF:
+	CALL	__frameset0
+;  219		if (!strncmp(line,"FORMAT ",7)){
+	LD	BC,7
+	PUSH	BC
+	LD	BC,L__78
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_103
+;  220			line+=7;
+	LD	IY,(IX+6)
+	LEA	IY,IY+7
+	LD	(IX+6),IY
+;  221			if (!strncmp(line,"ASM",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__80
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_101
+;  222				buffer[0]=2;
+	LD	A,2
+;  223				buffer[1]=0xEF;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+;  224				buffer[2]=0x7B;
+	LD	IY,_buffer
+	LD	(HL),239
+	LD	(IY+2),123
+;  225				return &buffer;
+	LD	HL,_buffer
+	JR	L_104
+;  226			} else {
+L_101:
+;  227				ErrorCode = "Bad Format";
+	LD	BC,L__82
+	LD	(_ErrorCode),BC
+;  228			}
+;  229		}
+L_103:
+	OR	A,A
+;  230		return 0;
+	SBC	HL,HL
+;  231	}
+L_104:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesF ***************************
+;Name                         Addr/Register   Size   Type
+;_ErrorCode                          IMPORT      3   variable
+;_buffer                             STATIC     16   variable
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__78:
+	DB	"FORMAT "
+	DB	0
+L__80:
+	DB	"ASM"
+	DB	0
+L__82:
+	DB	"Bad Format"
+	DB	0
+	SEGMENT CODE
+;  232	
+;  233	uint8_t *OpcodesI(const char *line){
+_OpcodesI:
+	LD	HL,-2
+	CALL	__frameset
+;  234		if (!strncmp(line,"INC ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__84
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_117
+;  235			uint8_t o;
+;  236			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  237			if (checkRRArg(line,0x03)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_111
+;  238				return &buffer;
+	LD	HL,_buffer
+	JR	L_119
+;  239			} else if ((o = getRArgN(line))!=0xFF){
+L_111:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	Z,L_109
+;  240				if (buffer[0]==1){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,1
+	SBC	HL,BC
+	JR	NZ,L_106
+;  241					buffer[1]=o<<3+0x04;
+	LD	B,7
+	LD	A,(IX+-1)
+	CALL	__bshl
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),A
+;  242				} else {
+	JR	L_107
+L_106:
+;  243					buffer[2]=o<<3+0x04;
+	LD	B,7
+	LD	A,(IX+-1)
+	LD	HL,_buffer+2
+	CALL	__bshl
+	LD	(HL),A
+;  244				}
+L_107:
+;  245				return &buffer;
+	LD	HL,_buffer
+	JR	L_119
+;  246			} else {
+L_109:
+;  247				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_119
+;  248			}
+;  249		} else if (!strncmp(line,"IN0 ",4)){
+L_117:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__89
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_118
+;  250			uint8_t o;
+;  251			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  252			if ((o = getRArgN(line))!=0xFF){
+	LD	BC,IY
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-2),A
+	CP	A,255
+	JR	Z,L_118
+;  253				if (buffer[0]==2){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_113
+;  254					return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_119
+;  255				} else {
+L_113:
+;  256					buffer[0]=2;
+	LD	A,2
+;  257					buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),237
+;  258					buffer[2]=o<<3;
+	LD	HL,_buffer+2
+	LD	A,(IX+-2)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	(HL),A
+;  259					return &buffer;
+	LD	HL,_buffer
+	JR	L_119
+;  260				}
+;  261			}
+;  262		}
+L_118:
+	OR	A,A
+;  263		return 0;
+	SBC	HL,HL
+;  264	}
+L_119:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesI ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRRArg                         IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;o                                     IX-2      1   variable
+;o                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 11 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__84:
+	DB	"INC "
+	DB	0
+L__89:
+	DB	"IN0 "
+	DB	0
+	SEGMENT CODE
+;  265	
+;  266	uint8_t *OpcodesJ(const char *line){
+_OpcodesJ:
+	LD	HL,-7
+	CALL	__frameset
+;  267		if (!strncmp(line,"JR ",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__94
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_138
+;  268			int num;
+;  269			uint8_t c;
+;  270			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  271			buffer[0]=2;
+;  272			if (!strncmp(line,"NZ,",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	A,2
+	LD	BC,L__96
+	PUSH	BC
+	LD	(_buffer),A
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_129
+;  273				buffer[1]=0x20;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),32
+;  274				line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  275			} else if (!strncmp(line,"NC,",3)){
+	JR	L_130
+L_129:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__98
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_127
+;  276				buffer[1]=0x30;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),48
+;  277				line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  278			} else if (!strncmp(line,"Z,",2)){
+	JR	L_130
+L_127:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__100
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_125
+;  279				buffer[1]=0x28;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),40
+;  280				line+=2;
+	LD	IY,(IX+6)
+	LEA	IY,IY+2
+	LD	(IX+6),IY
+;  281			} else if (!strncmp(line,"C,",2)){
+	JR	L_130
+L_125:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__102
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_123
+;  282				buffer[1]=0x38;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),56
+;  283				line+=2;
+	LD	IY,(IX+6)
+	LEA	IY,IY+2
+	LD	(IX+6),IY
+;  284			} else if (isNumber(line)) {
+	JR	L_130
+L_123:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_121
+;  285				buffer[1]=0x18;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),24
+;  286			} else {
+	JR	L_130
+L_121:
+;  287				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_140
+;  288			}
+L_130:
+;  289			num=getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-4),HL
+;  290			if (num<-0x80 || num>=0x80){
+	LD	BC,16777088
+	OR	A,A
+	SBC	HL,BC
+	JP	M,L_132
+	LD	BC,128
+	LD	HL,(IX+-4)
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	M,L_133
+L_132:
+;  291				ErrorCode = "JR Offset out of range";
+	LD	BC,L__107
+	LD	(_ErrorCode),BC
+	OR	A,A
+;  292				return 0;
+	SBC	HL,HL
+	JR	L_140
+;  293			}
+L_133:
+;  294			buffer[2]=num;
+	LD	HL,_buffer+2
+	LD	A,(IX+-4)
+	LD	(HL),A
+;  295			return &buffer;
+	LD	HL,_buffer
+	JR	L_140
+;  296		} else if (!strncmp(line,"JP ",3)){
+L_138:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__108
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_139
+;  297			int num;
+;  298			uint8_t cc;
+;  299			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  300			buffer[0]=ADDR_BYTES+1;
+;  301			if ((cc=getCondition(&line))==0xFF){
+	PEA	IX+6
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	LD	(_buffer),A
+	CALL	_getCondition
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	NZ,L_135
+	OR	A,A
+;  302				return 0;
+	SBC	HL,HL
+	JR	L_140
+;  303			}
+L_135:
+;  304			buffer[1]=0xC2+cc;
+	LD	A,(IX+-1)
+;  305			num = getNumber(&line);
+	PEA	IX+6
+	LD	HL,_buffer
+	INC	HL
+	ADD	A,194
+	LD	(HL),A
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-7),HL
+;  306			memcpy(&buffer[2],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-7
+	LD	BC,_buffer+2
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  307			return &buffer;
+	LD	HL,_buffer
+	JR	L_140
+;  308		}
+L_139:
+	OR	A,A
+;  309		return 0;
+	SBC	HL,HL
+;  310	}
+L_140:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesJ ***************************
+;Name                         Addr/Register   Size   Type
+;_memcpy                             IMPORT  -----   function
+;_getCondition                       IMPORT  -----   function
+;_ADDR_BYTES                         IMPORT      1   variable
+;_ErrorCode                          IMPORT      3   variable
+;_getNumber                          IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_isNumber                           IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_strncmp                            IMPORT  -----   function
+;num                                   IX-7      3   variable
+;num                                   IX-4      3   variable
+;cc                                    IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 16 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__94:
+	DB	"JR "
+	DB	0
+L__96:
+	DB	"NZ,"
+	DB	0
+L__98:
+	DB	"NC,"
+	DB	0
+L__100:
+	DB	"Z,"
+	DB	0
+L__102:
+	DB	"C,"
+	DB	0
+L__107:
+	DB	"JR Offset out of range"
+	DB	0
+L__108:
+	DB	"JP "
+	DB	0
+	SEGMENT CODE
+;  311	
+;  312	uint8_t *OpcodesL(const char *line){
+_OpcodesL:
+	LD	HL,-50
+	CALL	__frameset
+;  313		char *oldline;
+;  314		if (!strncmp(line,"LD ",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__112
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_228
+;  315			uint8_t o,iro;
+;  316			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  317			if (!strncmp(line,"(HL),",5)){ //ld (hl)
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__114
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_218
+;  318				line+=5;
+	LD	IY,(IX+6)
+	LEA	IY,IY+5
+	LD	(IX+6),IY
+;  319				if (checkRArg(line,0x70)){ //ld (hl),r
+	LD	BC,112
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_151
+;  320					return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  321				} else if (isNumber(line)){ //ld (hl),$00
+L_151:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_149
+;  322					buffer[0]=2;
+;  323					buffer[1]=0x36;
+;  324					buffer[2]=getNumber(&line);
+	PEA	IX+6
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),54
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+2),L
+;  325				} else if (checkRRArg(line,0x0F)){ //ld (hl),rr
+	JR	L_219
+L_149:
+	LD	BC,15
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_147
+;  326					if (buffer[1]==0xDD){
+	LD	BC,_buffer
+	INC	BC
+	LD	(IX+-14),BC
+	LD	HL,BC
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,221
+	SBC	HL,BC
+	JR	NZ,L_144
+;  327						buffer[2]=0x3F;
+	LD	HL,_buffer+2
+	LD	(HL),63
+;  328					} else if (buffer[1]==0xFD){
+	JR	L_145
+L_144:
+	LD	HL,(IX+-14)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,253
+	SBC	HL,BC
+	JR	NZ,L_142
+;  329						buffer[2]=0x3E;
+	LD	HL,_buffer+2
+	LD	(HL),62
+;  330					} else {
+	JR	L_145
+L_142:
+;  331						buffer[0]=2;
+	LD	A,2
+;  332						buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+	LD	(IY+2),A
+;  333					}
+L_145:
+;  334					buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),237
+;  335				} else {
+	JR	L_219
+L_147:
+;  336					return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_230
+;  337				}
+;  338			} else if (*line=='(' && isNumber(oldline=line+1)){ //ld ($000000),A
+L_218:
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,40
+	SBC	HL,BC
+	JR	NZ,L_216
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+-23),BC
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_216
+;  339				int num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-20),HL
+;  340				line++;
+	LD	BC,(IX+6)
+	LD	(IX+-32),BC
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+6),BC
+;  341				if (*line=='A'){
+	LD	HL,BC
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,65
+	SBC	HL,BC
+	JR	NZ,L_156
+;  342					buffer[0]=ADDR_BYTES+1;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+;  343					buffer[1]=0x32;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),50
+;  344					memcpy(&buffer[2],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-20
+	LD	BC,_buffer+2
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  345				} else if (!checkRRArg(line,0x43)){ //ld ($000000),rr
+	JR	L_219
+L_156:
+	LD	BC,67
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	NZ,L_219
+;  346					return invalidArgument(); //this acts like an "else" case
+	CALL	_invalidArgument
+	JR	L_230
+;  347				}
+;  348			} else if ((o=getRArgN(line))!=0xFF){ //ld r,X
+L_216:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	Z,L_214
+;  349				uint8_t irc;
+;  350				if (line[0]=='I'){ //found ixh/l
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,73
+	SBC	HL,BC
+	JR	NZ,L_159
+;  351					irc = line[1];
+	LD	HL,(IX+6)
+	INC	HL
+	LD	A,(HL)
+	LD	(IX+-6),A
+;  352					line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  353				} else {
+	JR	L_185
+L_159:
+;  354					irc = 0;
+	LD	(IX+-6),0
+;  355					line++;
+	LD	BC,(IX+6)
+	LD	(IX+-35),BC
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+6),BC
+;  356				}
+L_185:
+;  357				if (*line=='(' && isNumber(line+1) && o==7){ //ld A,($000000)
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,40
+	SBC	HL,BC
+	JR	NZ,L_184
+	LD	BC,(IX+6)
+	INC	BC
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_184
+	LD	A,(IX+-1)
+	CP	A,7
+	JR	NZ,L_184
+;  358					int num;
+;  359					line++;
+	LD	BC,(IX+6)
+	LD	(IX+-38),BC
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+6),BC
+;  360					buffer[0] = ADDR_BYTES+1;
+;  361					buffer[1] = 0x3A;
+;  362					num = getNumber(&line);
+	PEA	IX+6
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),58
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-29),HL
+;  363					memcpy(&buffer[2],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-29
+	LD	BC,_buffer+2
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  364				} else if (isNumber(line)){ //ld r,$00
+	JR	L_219
+L_184:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_182
+;  365					uint8_t num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-7),L
+;  366					if (irc){ //ld ixh/l,$00
+	LD	A,(IX+-6)
+	OR	A,A
+	JR	Z,L_167
+;  367						buffer[0]=3;
+	LD	A,3
+	LD	(_buffer),A
+;  368						if (irc=='X') buffer[1]=0xDD;
+	LD	A,(IX+-6)
+	CP	A,88
+	JR	NZ,L_164
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),221
+;  369						else buffer[1]=0xFD;
+	JR	L_165
+L_164:
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),253
+L_165:
+;  370						buffer[3]=num;
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	A,(IX+-7)
+	LD	(HL),A
+;  371						buffer[2]=0x06+o<<3;
+	LEA	HL,IY+2
+	LD	A,(IX+-1)
+	ADD	A,6
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	(HL),A
+;  372					} else { //ld r,$00
+	JR	L_219
+L_167:
+;  373						buffer[0]=2;
+	LD	A,2
+	LD	(_buffer),A
+;  374						buffer[2]=num;
+	LD	HL,_buffer+2
+	LD	A,(IX+-7)
+	LD	(HL),A
+;  375						buffer[1]=0x06+o<<3;
+	LD	A,(IX+-1)
+	ADD	A,6
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),A
+;  376					}
+;  377				} else if (iro = isIrOff(line)){ //ld r,(ir+dd)
+	JR	L_219
+L_182:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-2),L
+	LD	A,(IX+-2)
+	OR	A,A
+	JR	Z,L_180
+;  378					line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  379					if (buffer[0]==2){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_174
+;  380						return invalidArgument(); //cant ``ld ixh/l,(ir+dd)``
+	CALL	_invalidArgument
+	JR	L_230
+;  381					}
+L_174:
+;  382					if (*line=='+'){
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,43
+	SBC	HL,BC
+	JR	NZ,L_173
+;  383						line++;
+	LD	BC,(IX+6)
+	LD	(IX+-41),BC
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+6),BC
+;  384						buffer[3]=getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+3),L
+;  385					} else if (*line=='-'){
+	JR	L_175
+L_173:
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,45
+	SBC	HL,BC
+	JR	NZ,L_175
+;  386						line++;
+	LD	BC,(IX+6)
+	LD	(IX+-44),BC
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+6),BC
+;  387						buffer[3]=-getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	CALL	__ineg
+	LD	IY,_buffer
+	LD	(IY+3),L
+;  388					}
+L_175:
+;  389					buffer[2]=o<<3+0x46;
+	LD	B,73
+	LD	A,(IX+-1)
+	LD	HL,_buffer+2
+	CALL	__bshl
+	LD	(HL),A
+;  390					buffer[1]=iro;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-2)
+	LD	(HL),A
+;  391					buffer[0]=3;
+	LD	A,3
+	LD	(_buffer),A
+;  392				} else if (checkRArg(line,0x40)){ //ld r,r
+	JR	L_219
+L_180:
+	LD	BC,64
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_219
+;  393					if (buffer[0]==2){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_177
+;  394						buffer[2]+=o<<3;
+	LD	IY,_buffer
+	LEA	IY,IY+2
+	LD	(IX+-47),IY
+	LD	A,(IX+-1)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	HL,(IX+-47)
+	ADD	A,(HL)
+	LD	HL,(IX+-47)
+	LD	(HL),A
+;  395					} else {
+	JR	L_219
+L_177:
+;  396						buffer[1]+=o<<3;
+	LD	BC,_buffer
+	INC	BC
+	LD	(IX+-50),BC
+	LD	A,(IX+-1)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	HL,BC
+	ADD	A,(HL)
+	LD	HL,(IX+-50)
+	LD	(HL),A
+;  397					}
+;  398				}
+;  399			} else if (checkRRArg(line,0x01)){ //ld rr,X
+	JR	L_219
+L_214:
+	LD	BC,1
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_219
+;  400				line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  401				if (*line=='(' && isNumber(line+1)){ //ld rr,($000000)
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,40
+	SBC	HL,BC
+	JR	NZ,L_211
+	LD	BC,(IX+6)
+	INC	BC
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_211
+;  402					int num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-26),HL
+;  403					if (buffer[0]==2){ //ld ir,($000000)
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_190
+;  404						buffer[2]=0x2A;
+	LD	HL,_buffer+2
+	LD	(HL),42
+;  405					} else { //ld rr,($000000)
+	JR	L_191
+L_190:
+;  406						int num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+;  407						if (buffer[1]==0x21){ //ld hl,($000000)
+	LD	BC,_buffer
+	INC	BC
+	LD	(IX+-17),HL
+	LD	(IX+-5),BC
+	LD	HL,BC
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,33
+	SBC	HL,BC
+	JR	NZ,L_188
+;  408							buffer[1]=0x2A;
+	LD	HL,(IX+-5)
+	LD	(HL),42
+;  409							memcpy(&buffer[2],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-17
+	LD	BC,_buffer+2
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  410							buffer[0]=ADDR_BYTES+1;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	LD	(_buffer),A
+;  411						} else {
+	JR	L_191
+L_188:
+;  412							buffer[2]=buffer[1]+0x4A;
+	LD	HL,(IX+-5)
+	LD	A,(HL)
+	LD	IY,_buffer
+	LEA	HL,IY+2
+	ADD	A,74
+	LD	(HL),A
+;  413							buffer[1]=0xED;
+	LD	HL,(IX+-5)
+	LD	(HL),237
+;  414							memcpy(&buffer[3],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-17
+	LEA	BC,IY+3
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  415							buffer[0]=ADDR_BYTES+2;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	INC	A
+	LD	(_buffer),A
+;  416						}
+;  417					}
+L_191:
+;  418					memcpy(&buffer[3],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-26
+	LD	BC,_buffer+3
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  419					buffer[0] = ADDR_BYTES+2;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	INC	A
+	LD	(_buffer),A
+;  420				} else if (isNumber(line)){ //ld rr,$000000
+	JR	L_219
+L_211:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_209
+;  421					int num = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-10),HL
+;  422					if (buffer[0]==2){
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_193
+;  423						memcpy(&buffer[3],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-10
+	LD	BC,_buffer+3
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  424						buffer[0] = ADDR_BYTES+2;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	INC	A
+	LD	(_buffer),A
+;  425					} else {
+	JR	L_219
+L_193:
+;  426						memcpy(&buffer[2],&num,ADDR_BYTES);
+	LD	A,(_ADDR_BYTES)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-10
+	LD	BC,_buffer+2
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  427						buffer[0] = ADDR_BYTES+1;
+	LD	A,(_ADDR_BYTES)
+	INC	A
+	LD	(_buffer),A
+;  428					}
+;  429				} else if (!strncmp(line,"(HL)",4)){ //ld rr,(hl)
+	JR	L_219
+L_209:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__146
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_207
+;  430					if (buffer[0]==2) {
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_197
+;  431						if (buffer[1]==0xDD){
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,221
+	SBC	HL,BC
+	JR	NZ,L_195
+;  432							buffer[2]=0x36;
+	LD	HL,_buffer+2
+	LD	(HL),54
+;  433						} else {
+	JR	L_198
+L_195:
+;  434							buffer[2]=0x37;
+	LD	HL,_buffer+2
+	LD	(HL),55
+;  435						}
+;  436					} else {
+	JR	L_198
+L_197:
+;  437						buffer[0]=2;
+	LD	A,2
+;  438						buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+	LD	(IY+2),A
+;  439					}
+L_198:
+;  440					buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),237
+;  441				} else if (iro=isIrOff(line)) { //id rr,(ir+dd)
+	JR	L_219
+L_207:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-2),L
+	LD	A,(IX+-2)
+	OR	A,A
+	JR	Z,L_205
+;  442					uint8_t dd=getIrOff(&line);
+	PEA	IX+6
+	CALL	_getIrOff
+	POP	BC
+	LD	(IX+-11),A
+;  443					if (buffer[0]==2){ //ld ir,(ir+dd)
+	LD	A,(_buffer)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,2
+	SBC	HL,BC
+	JR	NZ,L_202
+;  444						if (buffer[1]==0xDD){ //ld ix,(ir+dd)
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,221
+	SBC	HL,BC
+	JR	NZ,L_200
+;  445							buffer[2]=0x31;
+	LD	HL,_buffer+2
+	LD	(HL),49
+;  446						} else { //ld iy,(ir+dd)
+	JR	L_203
+L_200:
+;  447							buffer[2]=0x37;
+	LD	HL,_buffer+2
+	LD	(HL),55
+;  448						}
+;  449					} else { //ld rr,(ir+dd)
+	JR	L_203
+L_202:
+;  450						buffer[2]=buffer[1]+6;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(HL)
+	LD	HL,_buffer+2
+	ADD	A,6
+	LD	(HL),A
+;  451					}
+L_203:
+;  452					buffer[0]=3;
+	LD	A,3
+	LD	(_buffer),A
+;  453					buffer[1]=iro;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-2)
+	LD	(HL),A
+;  454				} else {
+	JR	L_219
+L_205:
+;  455					return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_230
+;  456				}
+;  457			} 
+L_219:
+;  458			return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  459		} else if (!strncmp(line,"LDIR",4)){
+L_228:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__153
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_226
+;  460			buffer[0]=2; buffer[1]=0xED; buffer[2]=0xB0;
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),176
+;  461			return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  462		} else if (!strncmp(line,"LDDR",4)){
+L_226:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__155
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_224
+;  463			buffer[0]=2; buffer[1]=0xED; buffer[2]=0xB8;
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),184
+;  464			return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  465		} else if (!strncmp(line,"LDI",3)){
+L_224:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__157
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_222
+;  466			buffer[0]=2; buffer[1]=0xED; buffer[2]=0xA0;
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),160
+;  467			return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  468		} else if (!strncmp(line,"LDD",3)){
+L_222:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__159
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_229
+;  469			buffer[0]=2; buffer[1]=0xED; buffer[2]=0xA8;
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),168
+;  470			return &buffer;
+	LD	HL,_buffer
+	JR	L_230
+;  471		}
+L_229:
+	OR	A,A
+;  472		return 0;
+	SBC	HL,HL
+;  473	}
+L_230:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesL ***************************
+;Name                         Addr/Register   Size   Type
+;_getIrOff                           IMPORT  -----   function
+;_isIrOff                            IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_memcpy                             IMPORT  -----   function
+;_ADDR_BYTES                         IMPORT      1   variable
+;_invalidArgument                    IMPORT  -----   function
+;_checkRRArg                         IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_isNumber                           IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRArg                          IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;num                                  IX-29      3   variable
+;num                                  IX-26      3   variable
+;oldline                              IX-23      3   variable
+;num                                  IX-20      3   variable
+;num                                  IX-17      3   variable
+;G_2                                  IX-14      3   variable
+;dd                                   IX-11      1   variable
+;num                                  IX-10      3   variable
+;num                                   IX-7      1   variable
+;irc                                   IX-6      1   variable
+;G_3                                   IX-5      3   variable
+;iro                                   IX-2      1   variable
+;o                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 59 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__112:
+	DB	"LD "
+	DB	0
+L__114:
+	DB	"(HL),"
+	DB	0
+L__146:
+	DB	"(HL)"
+	DB	0
+L__153:
+	DB	"LDIR"
+	DB	0
+L__155:
+	DB	"LDDR"
+	DB	0
+L__157:
+	DB	"LDI"
+	DB	0
+L__159:
+	DB	"LDD"
+	DB	0
+	SEGMENT CODE
+;  474	
+;  475	uint8_t *OpcodesM(const char *line){
+_OpcodesM:
+	CALL	__frameset0
+;  476		if (!strncmp(line,"MULT ",5)){
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__162
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_234
+;  477			line+=5;
+	LD	IY,(IX+6)
+	LEA	IY,IY+5
+	LD	(IX+6),IY
+;  478			if (checkRRArg(line,0x4C)){
+	LD	BC,76
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_232
+;  479				buffer[0]=2;
+	LD	A,2
+;  480				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  481				buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),237
+;  482				return &buffer;
+	LD	HL,_buffer
+	JR	L_235
+;  483			} else {
+L_232:
+;  484				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_235
+;  485			}
+;  486		}
+L_234:
+	OR	A,A
+;  487		return 0;
+	SBC	HL,HL
+;  488	}
+L_235:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesM ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRRArg                         IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__162:
+	DB	"MULT "
+	DB	0
+	SEGMENT CODE
+;  489	uint8_t *OpcodesN(const char *line){
+_OpcodesN:
+	CALL	__frameset0
+;  490		if (!strncmp(line,"NEG",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__166
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_237
+;  491			buffer[0]=2;
+	LD	A,2
+;  492			buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+;  493			buffer[2]=0x44;
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),68
+;  494			return &buffer;
+	LD	HL,_buffer
+	JR	L_238
+;  495		}
+L_237:
+	OR	A,A
+;  496		return 0;
+	SBC	HL,HL
+;  497	}
+L_238:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesN ***************************
+;Name                         Addr/Register   Size   Type
+;_buffer                             STATIC     16   variable
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__166:
+	DB	"NEG"
+	DB	0
+	SEGMENT CODE
+;  498	
+;  499	uint8_t *OpcodesO(const char *line){
+_OpcodesO:
+	CALL	__frameset0
+;  500		if (!strncmp(line,"OR ",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__169
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_242
+;  501			line+=3;
+	LD	IY,(IX+6)
+	LEA	IY,IY+3
+	LD	(IX+6),IY
+;  502			if (checkRArg(line,0xB0)){
+	LD	BC,176
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_240
+;  503				return &buffer;
+	LD	HL,_buffer
+	JR	L_243
+;  504			}
+L_240:
+;  505			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_243
+;  506		}
+L_242:
+	OR	A,A
+;  507		return 0;
+	SBC	HL,HL
+;  508	}
+L_243:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesO ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRArg                          IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__169:
+	DB	"OR "
+	DB	0
+	SEGMENT CODE
+;  509	
+;  510	uint8_t *OpcodesP(const char *line){
+_OpcodesP:
+	LD	HL,-1
+	CALL	__frameset
+;  511		if (!strncmp(line,"POP ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__173
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_257
+;  512			if (checkRRArg(line+4,0xC1)){
+	LD	BC,193
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_245
+;  513				return &buffer;
+	LD	HL,_buffer
+	JR	L_259
+;  514			}
+L_245:
+;  515			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_259
+;  516		} else if (!strncmp(line,"PUSH ",5)){
+L_257:
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__176
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_255
+;  517			if (checkRRArg(line+5,0xC5)){
+	LD	BC,197
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+5
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_247
+;  518				return &buffer;
+	LD	HL,_buffer
+	JR	L_259
+;  519			}
+L_247:
+;  520			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_259
+;  521		} else if (!strncmp(line,"PEA ",4)){
+L_255:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__179
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_258
+;  522			uint8_t c;
+;  523			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  524			if (c=isIrOff(line)){
+	LD	BC,IY
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-1),L
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	Z,L_252
+;  525				buffer[0]=3;
+	LD	A,3
+;  526				buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),237
+;  527				if (c==0xDD){
+	LD	A,(IX+-1)
+	CP	A,221
+	JR	NZ,L_249
+;  528					buffer[2]=0x65;
+	LD	HL,_buffer+2
+	LD	(HL),101
+;  529				} else {
+	JR	L_250
+L_249:
+;  530					buffer[2]=0x66;
+	LD	HL,_buffer+2
+	LD	(HL),102
+;  531				}
+L_250:
+;  532				buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	CALL	_getIrOff
+	POP	BC
+	LD	HL,_buffer+3
+	LD	(HL),A
+;  533			} else {
+	JR	L_258
+L_252:
+;  534				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_259
+;  535			}
+;  536		}
+L_258:
+	OR	A,A
+;  537		return 0;
+	SBC	HL,HL
+;  538	}
+L_259:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesP ***************************
+;Name                         Addr/Register   Size   Type
+;_getIrOff                           IMPORT  -----   function
+;_isIrOff                            IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRRArg                         IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;c                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__173:
+	DB	"POP "
+	DB	0
+L__176:
+	DB	"PUSH "
+	DB	0
+L__179:
+	DB	"PEA "
+	DB	0
+	SEGMENT CODE
+;  539	
+;  540	uint8_t *OpcodesR(const char *line) {
+_OpcodesR:
+	LD	HL,-4
+	CALL	__frameset
+;  541		if (!strncmp(line,"RETN",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__184
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_300
+;  542			buffer[0]=2;
+	LD	A,2
+;  543			buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+;  544			buffer[2]=0x45;
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),69
+;  545			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  546		} else if (!strncmp(line,"RETI",4)){
+L_300:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__186
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_298
+;  547			buffer[0]=2;
+	LD	A,2
+;  548			buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+;  549			buffer[2]=0x4D;
+	LD	IY,_buffer
+	LD	(HL),237
+	LD	(IY+2),77
+;  550			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  551		} else if (!strncmp(line,"RLCA",4)){
+L_298:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__188
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_296
+;  552			buffer[0]=1;
+	LD	A,1
+;  553			buffer[1]=0x07;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),7
+;  554			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  555		} else if (!strncmp(line,"RRCA",4)){
+L_296:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__190
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_294
+;  556			buffer[0]=1;
+	LD	A,1
+;  557			buffer[1]=0x0F;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),15
+;  558			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  559		} else if (!strncmp(line,"RLA",3)){
+L_294:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__192
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_292
+;  560			buffer[0]=1;
+	LD	A,1
+;  561			buffer[1]=0x17;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),23
+;  562			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  563		} else if (!strncmp(line,"RRA",3)){
+L_292:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__194
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_290
+;  564			buffer[0]=1;
+	LD	A,1
+;  565			buffer[1]=0x1F;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),31
+;  566			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  567		} else if (!strncmp(line,"RES ",4)){
+L_290:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__196
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_288
+;  568			uint8_t r,bit;
+;  569			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  570			bit=getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-2),L
+;  571			if (bit<=7){
+	LD	A,7
+	CP	A,(IX+-2)
+	JR	C,L_264
+;  572				if (r=isIrOff(line)){
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-1),L
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	Z,L_262
+;  573					buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;  574					buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-1)
+;  575					buffer[2]=0xCB;
+;  576					buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;  577					buffer[4]=0x86+bit;
+	LD	A,(IX+-2)
+	LEA	HL,IY+4
+	ADD	A,134
+	LD	(HL),A
+;  578				} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_264
+L_262:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	Z,L_264
+;  579					buffer[0]=2;
+	LD	A,2
+;  580					buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;  581					buffer[2]=0x80+r+bit<<3;
+	LD	A,(IX+-1)
+	ADD	A,128
+	LD	HL,_buffer+2
+	ADD	A,(IX+-2)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	(HL),A
+;  582					return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  583				}
+;  584			}
+L_264:
+;  585			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_302
+;  586		} else if (!strncmp(line+4,"RLC ",4)){
+L_288:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__201
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_286
+;  587			if (checkRArg(line,0x00)){
+	LD	BC,0
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_301
+;  588				buffer[0]=2;
+	LD	A,2
+;  589				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  590				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),203
+;  591			}
+;  592		} else if (!strncmp(line,"RRC ",4)){
+	JR	L_301
+L_286:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__204
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_284
+;  593			if (checkRArg(line+4,0x08)){
+	LD	BC,8
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_301
+;  594				buffer[0]=2;
+	LD	A,2
+;  595				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  596				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),203
+;  597			}
+;  598		} else if (!strncmp(line,"RL ",3)){
+	JR	L_301
+L_284:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__207
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_282
+;  599			if (checkRArg(line+3,0x10)){
+	LD	BC,16
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+3
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_301
+;  600				buffer[0]=2;
+	LD	A,2
+;  601				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  602				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),203
+;  603			}
+;  604		} else if (!strncmp(line,"RR ",3)){
+	JR	L_301
+L_282:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__210
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_280
+;  605			if (checkRArg(line+3,0x18)){
+	LD	BC,24
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+3
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_301
+;  606				buffer[0]=2;
+	LD	A,2
+;  607				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  608				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),203
+;  609			}
+;  610		} else if (!strncmp(line,"RST ",4)){
+	JR	L_301
+L_280:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__213
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_278
+;  611			uint8_t n;
+;  612			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  613			n = getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-3),L
+;  614			if (!(n&7||n>0x38)){
+	LD	A,(IX+-3)
+	AND	A,7
+	JR	NZ,L_271
+	LD	A,56
+	CP	A,(IX+-3)
+	JR	C,L_271
+;  615				buffer[0]=1;
+	LD	A,1
+	LD	(_buffer),A
+;  616				buffer[1]=0xC7+n;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-3)
+	ADD	A,199
+	LD	(HL),A
+;  617				return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  618			}
+L_271:
+;  619			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_302
+;  620		} else if (!strncmp(line,"RET ",4)){
+L_278:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__217
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_276
+;  621			uint8_t cc;
+;  622			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  623			buffer[0]=1;
+;  624			if ((cc=getCondition(&line))==0xFF){
+	PEA	IX+6
+	LD	A,1
+	LD	(_buffer),A
+	CALL	_getCondition
+	POP	BC
+	LD	(IX+-4),A
+	CP	A,255
+	JR	NZ,L_273
+	OR	A,A
+;  625				return 0;
+	SBC	HL,HL
+	JR	L_302
+;  626			}
+L_273:
+;  627			buffer[1]=0xC0+cc;
+	LD	A,(IX+-4)
+	LD	HL,_buffer
+	INC	HL
+	ADD	A,192
+	LD	(HL),A
+;  628			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  629		} else if (!strncmp(line,"RET",3)){
+L_276:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__220
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_301
+;  630			buffer[0]=1;
+	LD	A,1
+;  631			buffer[1]=0xC9;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),201
+;  632			return &buffer;
+	LD	HL,_buffer
+	JR	L_302
+;  633		}
+L_301:
+	OR	A,A
+;  634		return 0;
+	SBC	HL,HL
+;  635	}
+L_302:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesR ***************************
+;Name                         Addr/Register   Size   Type
+;_getCondition                       IMPORT  -----   function
+;_checkRArg                          IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_getIrOff                           IMPORT  -----   function
+;_isIrOff                            IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_strncmp                            IMPORT  -----   function
+;cc                                    IX-4      1   variable
+;n                                     IX-3      1   variable
+;bit                                   IX-2      1   variable
+;r                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 13 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__184:
+	DB	"RETN"
+	DB	0
+L__186:
+	DB	"RETI"
+	DB	0
+L__188:
+	DB	"RLCA"
+	DB	0
+L__190:
+	DB	"RRCA"
+	DB	0
+L__192:
+	DB	"RLA"
+	DB	0
+L__194:
+	DB	"RRA"
+	DB	0
+L__196:
+	DB	"RES "
+	DB	0
+L__201:
+	DB	"RLC "
+	DB	0
+L__204:
+	DB	"RRC "
+	DB	0
+L__207:
+	DB	"RL "
+	DB	0
+L__210:
+	DB	"RR "
+	DB	0
+L__213:
+	DB	"RST "
+	DB	0
+L__217:
+	DB	"RET "
+	DB	0
+L__220:
+	DB	"RET"
+	DB	0
+	SEGMENT CODE
+;  636	
+;  637	uint8_t *OpcodesS(const char *line){
+_OpcodesS:
+	LD	HL,-5
+	CALL	__frameset
+;  638		if (!strncmp(line,"SUB ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__223
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_334
+;  639			if (checkRArg(line+4,0x90)){
+	LD	BC,144
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_304
+;  640				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  641			}
+L_304:
+;  642			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_336
+;  643		} else if (!strncmp(line,"SBC ",4)){
+L_334:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__226
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_332
+;  644			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  645			if (checkRRArg(line,0x42)){
+	LD	BC,66
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_307
+;  646				buffer[0]=2;
+	LD	A,2
+;  647				buffer[2]=buffer[1];
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	IY,_buffer
+	LD	A,(HL)
+;  648				buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(IY+2),A
+	LD	(HL),237
+;  649				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  650			} else if (checkRArg(line,0x98)){
+L_307:
+	LD	BC,152
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_335
+;  651				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  652			}
+;  653		} else if (!strncmp(line,"SCF",3)){
+L_332:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__230
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_330
+;  654			buffer[0]=1;
+	LD	A,1
+;  655			buffer[1]=0x37;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),55
+;  656			return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  657		} else if (!strncmp(line,"SET ",4)){
+L_330:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__232
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_328
+;  658			uint8_t r,bit;
+;  659			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  660			bit=getNumber(&line);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-5),L
+;  661			if (bit<=7){
+	LD	A,7
+	CP	A,(IX+-5)
+	JR	C,L_312
+;  662				if (r=isIrOff(line)){
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-1),L
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	Z,L_310
+;  663					buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;  664					buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-1)
+;  665					buffer[2]=0xCB;
+;  666					buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;  667					buffer[4]=0xC6+bit;
+	LD	A,(IX+-5)
+	LEA	HL,IY+4
+	ADD	A,198
+	LD	(HL),A
+;  668				} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_312
+L_310:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	Z,L_312
+;  669					buffer[0]=2;
+	LD	A,2
+;  670					buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;  671					buffer[2]=0xC0+r+bit<<3;
+	LD	A,(IX+-1)
+	ADD	A,192
+	LD	HL,_buffer+2
+	ADD	A,(IX+-5)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	(HL),A
+;  672					return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  673				}
+;  674			}
+L_312:
+;  675			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_336
+;  676		} else if (!strncmp(line,"SLA ",4)){
+L_328:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__237
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_326
+;  677			uint8_t r;
+;  678			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  679			if (r=isIrOff(line)){
+	LD	BC,IY
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-2),L
+	LD	A,(IX+-2)
+	OR	A,A
+	JR	Z,L_315
+;  680				buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;  681				buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-2)
+;  682				buffer[2]=0xCB;
+;  683				buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;  684				buffer[4]=0x26;
+	LD	(IY+4),38
+;  685			} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_335
+L_315:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-2),A
+	CP	A,255
+	JR	Z,L_335
+;  686				buffer[0]=2;
+	LD	A,2
+;  687				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;  688				buffer[2]=0x20+r;
+	LD	A,(IX+-2)
+	LD	HL,_buffer+2
+	ADD	A,32
+	LD	(HL),A
+;  689				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  690			}
+;  691		} else if (!strncmp(line,"SRA ",4)){
+L_326:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__241
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_324
+;  692			uint8_t r;
+;  693			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  694			if (r=isIrOff(line)){
+	LD	BC,IY
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-3),L
+	LD	A,(IX+-3)
+	OR	A,A
+	JR	Z,L_318
+;  695				buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;  696				buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-3)
+;  697				buffer[2]=0xCB;
+;  698				buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;  699				buffer[4]=0x2E;
+	LD	(IY+4),46
+;  700			} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_335
+L_318:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-3),A
+	CP	A,255
+	JR	Z,L_335
+;  701				buffer[0]=2;
+	LD	A,2
+;  702				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;  703				buffer[2]=0x28+r;
+	LD	A,(IX+-3)
+	LD	HL,_buffer+2
+	ADD	A,40
+	LD	(HL),A
+;  704				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  705			}
+;  706		} else if (!strncmp(line,"SRL ",4)){
+L_324:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__245
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_335
+;  707			uint8_t r;
+;  708			line+=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+4
+	LD	(IX+6),IY
+;  709			if (r=isIrOff(line)){
+	LD	BC,IY
+	PUSH	BC
+	CALL	_isIrOff
+	POP	BC
+	LD	(IX+-4),L
+	LD	A,(IX+-4)
+	OR	A,A
+	JR	Z,L_321
+;  710				buffer[0]=4;
+	LD	A,4
+	LD	(_buffer),A
+;  711				buffer[1]=r;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-4)
+;  712				buffer[2]=0xCB;
+;  713				buffer[3]=getIrOff(&line);
+	PEA	IX+6
+	LD	IY,_buffer
+	LD	(HL),A
+	LD	(IY+2),203
+	CALL	_getIrOff
+	POP	BC
+	LD	IY,_buffer
+	LEA	HL,IY+3
+	LD	(HL),A
+;  714				buffer[4]=0x36;
+	LD	(IY+4),54
+;  715			} else if ((r=getRArgN(line))!=0xFF){
+	JR	L_335
+L_321:
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-4),A
+	CP	A,255
+	JR	Z,L_335
+;  716				buffer[0]=2;
+	LD	A,2
+;  717				buffer[1]=0xCB;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),203
+;  718				buffer[2]=0x30+r;
+	LD	A,(IX+-4)
+	LD	HL,_buffer+2
+	ADD	A,48
+	LD	(HL),A
+;  719				return &buffer;
+	LD	HL,_buffer
+	JR	L_336
+;  720			}
+;  721		}
+L_335:
+	OR	A,A
+;  722		return 0;
+	SBC	HL,HL
+;  723	}
+L_336:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesS ***************************
+;Name                         Addr/Register   Size   Type
+;_getRArgN                           IMPORT  -----   function
+;_getIrOff                           IMPORT  -----   function
+;_isIrOff                            IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_checkRRArg                         IMPORT  -----   function
+;_invalidArgument                    IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRArg                          IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;bit                                   IX-5      1   variable
+;r                                     IX-4      1   variable
+;r                                     IX-3      1   variable
+;r                                     IX-2      1   variable
+;r                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 14 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__223:
+	DB	"SUB "
+	DB	0
+L__226:
+	DB	"SBC "
+	DB	0
+L__230:
+	DB	"SCF"
+	DB	0
+L__232:
+	DB	"SET "
+	DB	0
+L__237:
+	DB	"SLA "
+	DB	0
+L__241:
+	DB	"SRA "
+	DB	0
+L__245:
+	DB	"SRL "
+	DB	0
+	SEGMENT CODE
+;  724	
+;  725	uint8_t *OpcodesT(const char *line){
+_OpcodesT:
+	LD	HL,-1
+	CALL	__frameset
+;  726		if (!strncmp(line,"TST ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__250
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_341
+;  727			uint8_t c;
+;  728			if ((c=getRArgN(line+4))==0xFF){
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+	CP	A,255
+	JR	NZ,L_338
+;  729				return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_343
+;  730			}
+L_338:
+;  731			buffer[0]=2;
+	LD	A,2
+;  732			buffer[1]=0xED;
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),237
+;  733			buffer[2]=c<<3+4;
+	LD	A,(IX+-1)
+	LD	B,7
+	LD	HL,_buffer+2
+	CALL	__bshl
+	LD	(HL),A
+;  734			return &buffer;
+	LD	HL,_buffer
+	JR	L_343
+;  735		} else if (!strncmp(line,"TSR ",4)){
+L_341:
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__253
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_342
+;  736			line+=4;
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	LD	(IX+6),BC
+;  737			buffer[0]=3;
+;  738			buffer[1]=0xED;
+;  739			buffer[2]=0x74;
+;  740			buffer[3]=getNumber(&line);
+	PEA	IX+6
+	LD	A,3
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),237
+	LD	HL,_buffer+2
+	LD	(HL),116
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+3),L
+;  741			return &buffer;
+	LD	HL,_buffer
+	JR	L_343
+;  742		}
+L_342:
+	OR	A,A
+;  743		return 0;
+	SBC	HL,HL
+;  744	}
+L_343:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesT ***************************
+;Name                         Addr/Register   Size   Type
+;_getNumber                          IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_invalidArgument                    IMPORT  -----   function
+;_getRArgN                           IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;c                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__250:
+	DB	"TST "
+	DB	0
+L__253:
+	DB	"TSR "
+	DB	0
+	SEGMENT CODE
+;  745	
+;  746	uint8_t *OpcodesX(const char *line){
+_OpcodesX:
+	CALL	__frameset0
+;  747		if (!strncmp(line,"XOR ",4)){
+	LD	BC,4
+	PUSH	BC
+	LD	BC,L__256
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_348
+;  748			if (checkRArg(line+4,0xA8)){
+	LD	BC,168
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+4
+	PUSH	BC
+	CALL	_checkRArg
+	POP	BC
+	POP	BC
+	OR	A,A
+	JR	Z,L_345
+;  749				return &buffer;
+	LD	HL,_buffer
+	JR	L_349
+;  750			} else {
+L_345:
+;  751				buffer[0]=2;
+;  752				buffer[1]=0xEE;
+;  753				buffer[2]=getNumber(&line);
+	PEA	IX+6
+	LD	A,2
+	LD	HL,_buffer
+	INC	HL
+	LD	(_buffer),A
+	LD	(HL),238
+	CALL	_getNumber
+	POP	BC
+	LD	IY,_buffer
+	LD	(IY+2),L
+;  754			}
+;  755			return invalidArgument();
+	CALL	_invalidArgument
+	JR	L_349
+;  756		}
+L_348:
+	OR	A,A
+;  757		return 0;
+	SBC	HL,HL
+;  758	}
+L_349:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _OpcodesX ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;_buffer                             STATIC     16   variable
+;_checkRArg                          IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__256:
+	DB	"XOR "
+	DB	0
+	SEGMENT CODE
+;  759	
+;  760	
+;  761	
+;  762	
+;  763	
+;  764	
+;  765	
+;  766	int getNumber(char **line){
+_getNumber:
+	LD	HL,-25
+	CALL	__frameset
+;  767		unsigned char c,c2;
+;  768		int number;
+;  769		uint8_t base;
+;  770		base=10;
+	LD	(IX+-6),10
+;  771		if ((c=*(*line))=='('){
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-4),A
+	CP	A,40
+	JR	NZ,L_352
+;  772			(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  773			number = getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-3),HL
+;  774			c=*(*line);
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-4),A
+;  775		} else {
+	JR	L_358
+L_352:
+;  776			number = 0;
+	LD	BC,0
+	LD	(IX+-3),BC
+;  777		}
+L_358:
+;  778		if (c<0x30||c>0x39){
+	LD	A,(IX+-4)
+	CP	A,48
+	JR	C,L_357
+	LD	A,57
+	CP	A,(IX+-4)
+	JR	NC,L_431
+L_357:
+;  779			uint8_t *data;
+;  780			if (data=checkIncludes(*line)){
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_checkIncludes
+	POP	BC
+	LD	(IX+-9),HL
+	CALL	__icmpzero
+	JR	Z,L_431
+;  781				if (data[0]){
+	LD	HL,(IX+-9)
+	LD	A,(HL)
+	OR	A,A
+	JR	Z,L_355
+;  782					memcpy(&number,data+1,data[0]);
+	LD	HL,(IX+-9)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	LD	BC,(IX+-9)
+	INC	BC
+	PUSH	BC
+	PEA	IX+-3
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  783				} else {
+	JR	L_431
+L_355:
+;  784					markUndefLabel(data+1);
+	LD	BC,(IX+-9)
+	INC	BC
+	PUSH	BC
+	CALL	_markUndefLabel
+	POP	BC
+	OR	A,A
+;  785					return 0;
+	SBC	HL,HL
+	JR	L_435
+;  786				}
+;  787			}
+;  788		}
+;  789		while (c=*(*line)++){
+L_432:
+;  790			if (c=='?') {
+	LD	A,(IX+-4)
+	CP	A,63
+	JR	NZ,L_430
+;  791				c=*(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	LD	(IX+-22),BC
+	LD	HL,BC
+	LD	A,(HL)
+	LD	(IX+-4),A
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  792				if (c=='X'){
+	LD	A,(IX+-4)
+	CP	A,88
+	JR	NZ,L_368
+;  793					base = 16;
+	LD	(IX+-6),16
+;  794				} else if (c=='O') {
+	JR	L_431
+L_368:
+	LD	A,(IX+-4)
+	CP	A,79
+	JR	NZ,L_366
+;  795					base = 8;
+	LD	(IX+-6),8
+;  796				} else if (c=='D') {
+	JR	L_431
+L_366:
+	LD	A,(IX+-4)
+	CP	A,68
+	JR	NZ,L_364
+;  797					base = 10;
+	LD	(IX+-6),10
+;  798				} else if (c=='B') {
+	JR	L_431
+L_364:
+	LD	A,(IX+-4)
+	CP	A,66
+	JR	NZ,L_362
+;  799					base = 2;
+	LD	(IX+-6),2
+;  800				} else {
+	JR	L_431
+L_362:
+;  801					ErrorCode = "Invalid Number Base";
+	LD	BC,L__270
+	LD	(_ErrorCode),BC
+	OR	A,A
+;  802					return 0;
+	SBC	HL,HL
+	JR	L_435
+;  803				}
+;  804			} else if (c=='-') {
+L_430:
+	LD	A,(IX+-4)
+	CP	A,45
+	JR	NZ,L_428
+;  805				number -= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	LD	(IX+-3),HL
+;  806			} else if (c=='+') {
+	JR	L_431
+L_428:
+	LD	A,(IX+-4)
+	CP	A,43
+	JR	NZ,L_426
+;  807				number += getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	ADD	HL,BC
+	LD	(IX+-3),HL
+;  808			} else if (c=='/') {
+	JR	L_431
+L_426:
+	LD	A,(IX+-4)
+	CP	A,47
+	JR	NZ,L_424
+;  809				number /= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	CALL	__idivs
+	LD	(IX+-3),HL
+;  810			} else if (c=='*') {
+	JR	L_431
+L_424:
+	LD	A,(IX+-4)
+	CP	A,42
+	JR	NZ,L_422
+;  811				number *= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	CALL	__imuls
+	LD	(IX+-3),HL
+;  812			} else if (c=='>') {
+	JR	L_431
+L_422:
+	LD	A,(IX+-4)
+	CP	A,62
+	JR	NZ,L_420
+;  813				if ((c2=*(*line))=='>'){
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-5),A
+	CP	A,62
+	JR	NZ,L_373
+;  814					(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  815					number >>= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	CALL	__ishrs
+	LD	(IX+-3),HL
+;  816				} else if (c2=='='){
+	JR	L_431
+L_373:
+	LD	A,(IX+-5)
+	CP	A,61
+	JR	NZ,L_371
+;  817					number = number >= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	JP	M,L__279
+	LD	B,1
+	JR	L__280
+L__279:
+	LD	B,0
+L__280:
+	LD	A,B
+	SEXT	HL
+	LD	L,B
+	LD	(IX+-3),HL
+;  818				} else {
+	JR	L_431
+L_371:
+;  819					number = number > getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	P,L__282
+	LD	B,1
+	JR	L__283
+L__282:
+	LD	B,0
+L__283:
+	LD	A,B
+	SEXT	HL
+	LD	L,B
+	LD	(IX+-3),HL
+;  820				}
+;  821			} else if (c=='<'){
+	JR	L_431
+L_420:
+	LD	A,(IX+-4)
+	CP	A,60
+	JR	NZ,L_418
+;  822				if ((c2=*(*line))=='<'){
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-5),A
+	CP	A,60
+	JR	NZ,L_378
+;  823					(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  824					number <<= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	CALL	__ishl
+	LD	(IX+-3),HL
+;  825				} else if (c2=='=') {
+	JR	L_431
+L_378:
+	LD	A,(IX+-5)
+	CP	A,61
+	JR	NZ,L_376
+;  826					number = number <= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	M,L__288
+	LD	B,1
+	JR	L__289
+L__288:
+	LD	B,0
+L__289:
+	LD	A,B
+	SEXT	HL
+	LD	L,B
+	LD	(IX+-3),HL
+;  827				} else {
+	JR	L_431
+L_376:
+;  828					number = number < getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	P,L__291
+	LD	B,1
+	JR	L__292
+L__291:
+	LD	B,0
+L__292:
+	LD	A,B
+	SEXT	HL
+	LD	L,B
+	LD	(IX+-3),HL
+;  829				}
+;  830			} else if (c=='!'){
+	JR	L_431
+L_418:
+	LD	A,(IX+-4)
+	CP	A,33
+	JR	NZ,L_416
+;  831				if ((c2=*(*line))=='A'){
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-5),A
+	CP	A,65
+	JR	NZ,L_407
+;  832					number = number && getNumber(line);
+	LD	HL,(IX+-3)
+	CALL	__icmpzero
+	JR	Z,L_381
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_381
+	LD	BC,1
+	LD	(IX+-16),BC
+	JR	L_382
+L_381:
+	LD	BC,0
+	LD	(IX+-16),BC
+L_382:
+	LD	BC,(IX+-16)
+	LD	(IX+-3),BC
+;  833				} else if (c2=='O'){
+	JR	L_431
+L_407:
+	LD	A,(IX+-5)
+	CP	A,79
+	JR	NZ,L_405
+;  834					number = number || getNumber(line);
+	LD	HL,(IX+-3)
+	CALL	__icmpzero
+	JR	NZ,L_385
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_386
+L_385:
+	LD	BC,1
+	LD	(IX+-19),BC
+	JR	L_387
+L_386:
+	LD	BC,0
+	LD	(IX+-19),BC
+L_387:
+	LD	BC,(IX+-19)
+	LD	(IX+-3),BC
+;  835				} else if (c2=='X'){
+	JR	L_431
+L_405:
+	LD	A,(IX+-5)
+	CP	A,88
+	JR	NZ,L_403
+;  836					number = !(number && getNumber(line));
+	LD	HL,(IX+-3)
+	CALL	__icmpzero
+	JR	Z,L_390
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_391
+L_390:
+	LD	BC,1
+	LD	(IX+-13),BC
+	JR	L_392
+L_391:
+	LD	BC,0
+	LD	(IX+-13),BC
+L_392:
+	LD	BC,(IX+-13)
+	LD	(IX+-3),BC
+;  837				} else if (c2=='+'){
+	JR	L_431
+L_403:
+	LD	A,(IX+-5)
+	CP	A,43
+	JR	NZ,L_401
+;  838					number &= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	CALL	__iand
+	LD	(IX+-3),HL
+;  839				} else if (c2=='-') {
+	JR	L_431
+L_401:
+	LD	A,(IX+-5)
+	CP	A,45
+	JR	NZ,L_399
+;  840					number |= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	CALL	__ior
+	LD	(IX+-3),HL
+;  841				} else if (c2=='*') {
+	JR	L_431
+L_399:
+	LD	A,(IX+-5)
+	CP	A,42
+	JR	NZ,L_397
+;  842					number ^= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,(IX+-3)
+	CALL	__ixor
+	LD	(IX+-3),HL
+;  843				} else if (c2=='M') {
+	JR	L_431
+L_397:
+	LD	A,(IX+-5)
+	CP	A,77
+	JR	NZ,L_395
+;  844					number %= getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	CALL	__irems
+	LD	(IX+-3),HL
+;  845				} else {
+	JR	L_431
+L_395:
+;  846					ErrorCode = "Syntax Error: Expected logical operator";
+	LD	BC,L__307
+	LD	(_ErrorCode),BC
+	OR	A,A
+;  847					return 0;
+	SBC	HL,HL
+	JR	L_435
+;  848				}
+;  849			} else if (c==')' || c==',' || c==' '){
+L_416:
+	LD	A,(IX+-4)
+	CP	A,41
+	JR	Z,L_413
+	LD	A,(IX+-4)
+	CP	A,44
+	JR	Z,L_413
+	LD	A,(IX+-4)
+	CP	A,32
+	JR	NZ,L_414
+L_413:
+;  850				(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  851				return number;
+	LD	HL,(IX+-3)
+	JR	L_435
+;  852			} else {
+L_414:
+;  853				uint8_t a = digitValue(c);
+	LD	C,(IX+-4)
+	LD	B,0
+	PUSH	BC
+	CALL	_digitValue
+	POP	BC
+	LD	(IX+-10),L
+;  854				if (a<base){
+	LD	A,(IX+-10)
+	CP	A,(IX+-6)
+	JR	NC,L_412
+;  855					number = number*base + a;
+	LD	A,(IX+-6)
+	UEXT	HL
+	LD	L,A
+	LD	BC,HL
+	LD	HL,(IX+-3)
+	CALL	__imuls
+	LD	BC,HL
+	LD	A,(IX+-10)
+	UEXT	HL
+	LD	L,A
+	ADD	HL,BC
+	LD	(IX+-3),HL
+;  856				} else {
+	JR	L_431
+L_412:
+;  857					ErrorCode = "Number Format Error";
+	LD	BC,L__312
+	LD	(_ErrorCode),BC
+	OR	A,A
+;  858					return 0;
+	SBC	HL,HL
+	JR	L_435
+;  859				}
+;  860			}
+;  861		}
+L_431:
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	LD	(IX+-25),BC
+	LD	HL,BC
+	LD	A,(HL)
+	LD	(IX+-4),A
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+	LD	A,(IX+-4)
+	OR	A,A
+	JR	NZ,L_432
+;  862		return number;
+	LD	HL,(IX+-3)
+;  863	}
+L_435:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _getNumber ***************************
+;Name                         Addr/Register   Size   Type
+;_digitValue                         IMPORT  -----   function
+;_ErrorCode                          IMPORT      3   variable
+;_markUndefLabel                     IMPORT  -----   function
+;_memcpy                             IMPORT  -----   function
+;_checkIncludes                      IMPORT  -----   function
+;temp388                              IX-19      3   variable
+;temp383                              IX-16      3   variable
+;temp393                              IX-13      3   variable
+;a                                    IX-10      1   variable
+;data                                  IX-9      3   variable
+;base                                  IX-6      1   variable
+;c2                                    IX-5      1   variable
+;c                                     IX-4      1   variable
+;number                                IX-3      3   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 34 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__270:
+	DB	"Invalid Number Base"
+	DB	0
+L__307:
+	DB	"Syntax Error: Expected logical operator"
+	DB	0
+L__312:
+	DB	"Number Format Error"
+	DB	0
+	SEGMENT CODE
+;  864	
+;  865	
+;  866	
+;  867	uint8_t checkRRArg(const char *args,uint8_t base){
+_checkRRArg:
+	LD	HL,-3
+	CALL	__frameset
+;  868		uint8_t c1,c2,o,i;
+;  869		c1 = args[0];
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	(IX+-1),A
+;  870		c2 = args[1];
+	LD	HL,(IX+6)
+	INC	HL
+	LD	A,(HL)
+	LD	(IX+-2),A
+;  871		if (c1=='S' && c2=='P')      o=0x30;
+	LD	A,(IX+-1)
+	CP	A,83
+	JR	NZ,L_448
+	LD	A,(IX+-2)
+	CP	A,80
+	JR	NZ,L_448
+	LD	(IX+-3),48
+;  872		else if (c1=='H' && c2=='L') o=0x20;
+	JR	L_455
+L_448:
+	LD	A,(IX+-1)
+	CP	A,72
+	JR	NZ,L_446
+	LD	A,(IX+-2)
+	CP	A,76
+	JR	NZ,L_446
+	LD	(IX+-3),32
+;  873		else if (c1=='D' && c2=='E') o=0x10;
+	JR	L_455
+L_446:
+	LD	A,(IX+-1)
+	CP	A,68
+	JR	NZ,L_444
+	LD	A,(IX+-2)
+	CP	A,69
+	JR	NZ,L_444
+	LD	(IX+-3),16
+;  874		else {
+	JR	L_455
+L_444:
+;  875			if (c1!='I'){
+	LD	A,(IX+-1)
+	CP	A,73
+	JR	Z,L_455
+;  876				if (!(c1=='B' && c2=='C')) return 0;
+	LD	A,(IX+-1)
+	CP	A,66
+	JR	NZ,L_440
+	LD	A,(IX+-2)
+	CP	A,67
+	JR	Z,L_441
+L_440:
+	XOR	A,A
+	JR	L_457
+L_441:
+;  877				o=0x00;
+	LD	(IX+-3),0
+;  878			}
+;  879		}
+L_455:
+;  880		if (c1=='I'){
+	LD	A,(IX+-1)
+	CP	A,73
+	JR	NZ,L_454
+;  881			buffer[2] = o+base;
+	LD	A,(IX+-3)
+	ADD	A,(IX+9)
+	LD	HL,_buffer+2
+	LD	(HL),A
+;  882			if (c2=='X')      buffer[1]=0xDD;
+	LD	A,(IX+-2)
+	CP	A,88
+	JR	NZ,L_451
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),221
+;  883			else if (c2=='Y') buffer[1]=0xFD;
+	JR	L_452
+L_451:
+	LD	A,(IX+-2)
+	CP	A,89
+	JR	NZ,L_452
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),253
+L_452:
+;  884			buffer[0] = 2;
+	LD	A,2
+	LD	(_buffer),A
+;  885		} else {
+	JR	L_456
+L_454:
+;  886			buffer[1] = o+base;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+-3)
+	ADD	A,(IX+9)
+	LD	(HL),A
+;  887			buffer[0] = 1;
+	LD	A,1
+	LD	(_buffer),A
+;  888		}
+L_456:
+;  889		return buffer[0];
+	LD	A,(_buffer)
+;  890	}
+L_457:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _checkRRArg ***************************
+;Name                         Addr/Register   Size   Type
+;_buffer                             STATIC     16   variable
+;o                                     IX-3      1   variable
+;c2                                    IX-2      1   variable
+;c1                                    IX-1      1   variable
+;base                                  IX+9      1   parameter
+;args                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  891	
+;  892	int isNumber(const char *line){
+_isNumber:
+	LD	HL,-2
+	CALL	__frameset
+;  893		uint8_t c1,c2;
+;  894		if (((c1=line[0])=='H' && (c2=line[1])=='L')||(c1=='D' && c2=='E')||
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	(IX+-1),A
+	CP	A,72
+	JR	NZ,L_460
+	LD	HL,(IX+6)
+	INC	HL
+	LD	A,(HL)
+	LD	(IX+-2),A
+	CP	A,76
+	JR	Z,L_467
+L_460:
+	LD	A,(IX+-1)
+	CP	A,68
+	JR	NZ,L_462
+	LD	A,(IX+-2)
+	CP	A,69
+	JR	Z,L_467
+L_462:
+;  895			(c1=='B' && c2=='C')||(c1=='A' && c2=='F')||(c1=='S' && c2=='P')){
+	LD	A,(IX+-1)
+	CP	A,66
+	JR	NZ,L_464
+	LD	A,(IX+-2)
+	CP	A,67
+	JR	Z,L_467
+L_464:
+	LD	A,(IX+-1)
+	CP	A,65
+	JR	NZ,L_466
+	LD	A,(IX+-2)
+	CP	A,70
+	JR	Z,L_467
+L_466:
+	LD	A,(IX+-1)
+	CP	A,83
+	JR	NZ,L_468
+	LD	A,(IX+-2)
+	CP	A,80
+	JR	NZ,L_468
+L_467:
+	OR	A,A
+;  896			return 0;
+	SBC	HL,HL
+	JR	L_469
+;  897		}
+L_468:
+;  898		return 1;
+	LD	HL,1
+;  899	}
+L_469:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _isNumber ***************************
+;Name                         Addr/Register   Size   Type
+;c2                                    IX-2      1   variable
+;c1                                    IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 11 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  900	
+;  901	int isIrOff(const char *line){
+_isIrOff:
+	CALL	__frameset0
+;  902		if (!strncmp(line,"(IX",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__339
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_472
+;  903			return 0xDD;
+	LD	HL,221
+	JR	L_474
+;  904		} else if (!strncmp(line,"(IY",3)){
+L_472:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__341
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_473
+;  905			return 0xFD;
+	LD	HL,253
+	JR	L_474
+;  906		}
+L_473:
+	OR	A,A
+;  907		return 0;
+	SBC	HL,HL
+;  908	}
+L_474:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _isIrOff ***************************
+;Name                         Addr/Register   Size   Type
+;_strncmp                            IMPORT  -----   function
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 9 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__339:
+	DB	"(IX"
+	DB	0
+L__341:
+	DB	"(IY"
+	DB	0
+	SEGMENT CODE
+;  909	
+;  910	int digitValue(char c){
+_digitValue:
+	LD	HL,-1
+	CALL	__frameset
+;  911		uint8_t a;
+;  912		if ((a = c-0x30)<10){
+	LD	A,(IX+6)
+	SUB	A,48
+	LD	(IX+-1),A
+	CP	A,10
+	JR	NC,L_477
+;  913			return a;
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	JR	L_479
+;  914		} else if ((a = c-0x41)<26){
+L_477:
+	LD	A,(IX+6)
+	SUB	A,65
+	LD	(IX+-1),A
+	CP	A,26
+	JR	NC,L_478
+;  915			return a+10;
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	LD	IY,HL
+	LEA	HL,IY+10
+	JR	L_479
+;  916		}
+L_478:
+;  917		return 0xFF;
+	LD	HL,255
+;  918	}
+L_479:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _digitValue ***************************
+;Name                         Addr/Register   Size   Type
+;a                                     IX-1      1   variable
+;c                                     IX+6      1   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  919	
+;  920	uint8_t checkRArg(const char *args,uint8_t base){
+_checkRArg:
+	LD	HL,-4
+	CALL	__frameset
+;  921		uint8_t c=getRArgN(args);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getRArgN
+	POP	BC
+	LD	(IX+-1),A
+;  922		if (c==0xFF) return 0;
+	CP	A,255
+	JR	NZ,L_485
+	XOR	A,A
+	JR	L_487
+L_485:
+;  923		if (args[1]=='X'){
+	LD	BC,(IX+6)
+	INC	BC
+	LD	(IX+-4),BC
+	LD	HL,BC
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,88
+	SBC	HL,BC
+	JR	NZ,L_484
+;  924			buffer[1]=0xDD;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),221
+;  925		} else if (args[1]=='Y'){
+	JR	L_486
+L_484:
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,89
+	SBC	HL,BC
+	JR	NZ,L_482
+;  926			buffer[1]=0xFD;
+	LD	HL,_buffer
+	INC	HL
+	LD	(HL),253
+;  927		} else {
+	JR	L_486
+L_482:
+;  928			buffer[1]=base+c;
+	LD	HL,_buffer
+	INC	HL
+	LD	A,(IX+9)
+	ADD	A,(IX+-1)
+	LD	(HL),A
+;  929			return (buffer[0]=1);
+	LD	A,1
+	LD	(_buffer),A
+	JR	L_487
+;  930		}
+L_486:
+;  931		buffer[2]=base+c;
+	LD	A,(IX+9)
+	ADD	A,(IX+-1)
+	LD	HL,_buffer+2
+	LD	(HL),A
+;  932		return (buffer[0]=2);
+	LD	A,2
+	LD	(_buffer),A
+;  933	}
+L_487:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _checkRArg ***************************
+;Name                         Addr/Register   Size   Type
+;_buffer                             STATIC     16   variable
+;_getRArgN                           IMPORT  -----   function
+;G_5                                   IX-4      3   variable
+;c                                     IX-1      1   variable
+;base                                  IX+9      1   parameter
+;args                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 16 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  934	
+;  935	uint8_t getRArgN(const char *args){
+_getRArgN:
+	LD	HL,-6
+	CALL	__frameset
+;  936		uint8_t c,o;
+;  937		c = args[0]; o=0xFF;
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	LD	(IX+-1),A
+	LD	(IX+-2),255
+;  938		if (c=='('){
+	LD	A,(IX+-1)
+	CP	A,40
+	JR	NZ,L_517
+;  939			if (!strncmp(args+1,"HL)",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__352
+	PUSH	BC
+	LD	BC,(IX+6)
+	INC	BC
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_489
+;  940				o=6;
+	LD	(IX+-2),6
+;  941			} else {
+	JR	L_518
+L_489:
+;  942				o=-1;
+	LD	(IX+-2),255
+;  943			}
+;  944		} else if (c=='I'){
+	JR	L_518
+L_517:
+	LD	A,(IX+-1)
+	CP	A,73
+	JR	NZ,L_515
+;  945			if (args[2]=='H')      o=4;
+	LD	IY,(IX+6)
+	LEA	IY,IY+2
+	LD	(IX+-6),IY
+	LD	HL,(IX+-6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,72
+	SBC	HL,BC
+	JR	NZ,L_492
+	LD	(IX+-2),4
+;  946			else if (args[2]=='L') o=5;
+	JR	L_496
+L_492:
+	LD	HL,(IX+-6)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	OR	A,A
+	LD	BC,76
+	SBC	HL,BC
+	JR	NZ,L_496
+	LD	(IX+-2),5
+L_496:
+;  947			if ((c=args[3])!=',' && c!=' ' && c){
+	LD	IY,(IX+6)
+	LD	A,(IY+3)
+	LD	(IX+-1),A
+	CP	A,44
+	JR	Z,L_518
+	LD	A,(IX+-1)
+	CP	A,32
+	JR	Z,L_518
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	Z,L_518
+;  948				return 0xFF;
+	LD	A,255
+	JR	L_519
+;  949			}
+;  950		} else {
+L_515:
+;  951			uint8_t c2;
+;  952			if ((c2=args[1])!=',' && c2!=' ' && c2){
+	LD	HL,(IX+6)
+	INC	HL
+	LD	A,(HL)
+	LD	(IX+-3),A
+	CP	A,44
+	JR	Z,L_513
+	LD	A,(IX+-3)
+	CP	A,32
+	JR	Z,L_513
+	LD	A,(IX+-3)
+	OR	A,A
+	JR	Z,L_513
+;  953				return 0xFF;
+	LD	A,255
+	JR	L_519
+;  954			}
+;  955			else if (c=='A') o=7;
+L_513:
+	LD	A,(IX+-1)
+	CP	A,65
+	JR	NZ,L_511
+	LD	(IX+-2),7
+;  956			else if (c=='B') o=0;
+	JR	L_518
+L_511:
+	LD	A,(IX+-1)
+	CP	A,66
+	JR	NZ,L_509
+	LD	(IX+-2),0
+;  957			else if (c=='C') o=1;
+	JR	L_518
+L_509:
+	LD	A,(IX+-1)
+	CP	A,67
+	JR	NZ,L_507
+	LD	(IX+-2),1
+;  958			else if (c=='D') o=2;
+	JR	L_518
+L_507:
+	LD	A,(IX+-1)
+	CP	A,68
+	JR	NZ,L_505
+	LD	(IX+-2),2
+;  959			else if (c=='E') o=3;
+	JR	L_518
+L_505:
+	LD	A,(IX+-1)
+	CP	A,69
+	JR	NZ,L_503
+	LD	(IX+-2),3
+;  960			else if (c=='H') o=4;
+	JR	L_518
+L_503:
+	LD	A,(IX+-1)
+	CP	A,72
+	JR	NZ,L_501
+	LD	(IX+-2),4
+;  961			else if (c=='L') o=5;
+	JR	L_518
+L_501:
+	LD	A,(IX+-1)
+	CP	A,76
+	JR	NZ,L_518
+	LD	(IX+-2),5
+;  962		}
+L_518:
+;  963		return o;
+	LD	A,(IX+-2)
+;  964	}
+L_519:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _getRArgN ***************************
+;Name                         Addr/Register   Size   Type
+;_strncmp                            IMPORT  -----   function
+;G_6                                   IX-6      3   variable
+;c2                                    IX-3      1   variable
+;o                                     IX-2      1   variable
+;c                                     IX-1      1   variable
+;args                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__352:
+	DB	"HL)"
+	DB	0
+	SEGMENT CODE
+;  965	
+;  966	uint8_t getIrOff(const char **line){
+_getIrOff:
+	LD	HL,-1
+	CALL	__frameset
+;  967		uint8_t c;
+;  968		if ((c=*(*line))=='+'){
+	LD	HL,(IX+6)
+	LD	HL,(HL)
+	LD	A,(HL)
+	LD	(IX+-1),A
+	CP	A,43
+	JR	NZ,L_524
+;  969			(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  970			return getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	LD	A,L
+	JR	L_525
+;  971		} else if (c=='-'){
+L_524:
+	LD	A,(IX+-1)
+	CP	A,45
+	JR	NZ,L_525
+;  972			(*line)++;
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	INC	BC
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  973			return -getNumber(line);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_getNumber
+	POP	BC
+	CALL	__ineg
+	LD	A,L
+;  974		}
+;  975	}
+L_525:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _getIrOff ***************************
+;Name                         Addr/Register   Size   Type
+;_getNumber                          IMPORT  -----   function
+;c                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  976	
+;  977	uint8_t getCondition(const char **line){
+_getCondition:
+	LD	HL,-1
+	CALL	__frameset
+;  978		uint8_t c;
+;  979		if (!strncmp(*line,"NZ,",3)){
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__374
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_543
+;  980			c=0x00;
+	LD	(IX+-1),0
+;  981			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  982		} else if (!strncmp(*line,"NC,",3)){
+	JR	L_544
+L_543:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__376
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_541
+;  983			c=0x10;
+	LD	(IX+-1),16
+;  984			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  985		} else if (!strncmp(*line,"Z,",2)){
+	JR	L_544
+L_541:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__378
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_539
+;  986			c=0x08;
+	LD	(IX+-1),8
+;  987			(*line)+=2;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+2
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  988		} else if (!strncmp(*line,"C,",2)){
+	JR	L_544
+L_539:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__380
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_537
+;  989			c=0x18;
+	LD	(IX+-1),24
+;  990			(*line)+=2;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+2
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  991		} else if (!strncmp(*line,"PO,",3)) {
+	JR	L_544
+L_537:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__382
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_535
+;  992			c=0x20;
+	LD	(IX+-1),32
+;  993			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  994		} else if (!strncmp(*line,"PE,",3)) {
+	JR	L_544
+L_535:
+	LD	BC,3
+	PUSH	BC
+	LD	BC,L__384
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_533
+;  995			c=0x28;
+	LD	(IX+-1),40
+;  996			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+;  997		} else if (!strncmp(*line,"P,",2)) {
+	JR	L_544
+L_533:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__386
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_531
+;  998			c=0x30;
+	LD	(IX+-1),48
+;  999			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+; 1000		} else if (!strncmp(*line,"M,",2)) {
+	JR	L_544
+L_531:
+	LD	BC,2
+	PUSH	BC
+	LD	BC,L__388
+	PUSH	BC
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_strncmp
+	POP	BC
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	NZ,L_529
+; 1001			c=0x38;
+	LD	(IX+-1),56
+; 1002			(*line)+=3;
+	LD	HL,(IX+6)
+	LD	IY,(HL)
+	LEA	BC,IY+3
+	LD	HL,(IX+6)
+	LD	(HL),BC
+; 1003		} else if (isNumber(*line)) {
+	JR	L_544
+L_529:
+	LD	HL,(IX+6)
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_isNumber
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_527
+; 1004			c=0x09;
+	LD	(IX+-1),9
+; 1005		} else {
+	JR	L_544
+L_527:
+; 1006			invalidArgument();
+	CALL	_invalidArgument
+; 1007			return 0xFF;
+	LD	A,255
+	JR	L_545
+; 1008		}
+L_544:
+; 1009		return c;
+	LD	A,(IX+-1)
+; 1010	}
+L_545:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _getCondition ***************************
+;Name                         Addr/Register   Size   Type
+;_invalidArgument                    IMPORT  -----   function
+;_isNumber                           IMPORT  -----   function
+;_strncmp                            IMPORT  -----   function
+;c                                     IX-1      1   variable
+;line                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__374:
+	DB	"NZ,"
+	DB	0
+L__376:
+	DB	"NC,"
+	DB	0
+L__378:
+	DB	"Z,"
+	DB	0
+L__380:
+	DB	"C,"
+	DB	0
+L__382:
+	DB	"PO,"
+	DB	0
+L__384:
+	DB	"PE,"
+	DB	0
+L__386:
+	DB	"P,"
+	DB	0
+L__388:
+	DB	"M,"
+	DB	0
+	SEGMENT CODE
+; 1011	
+; 1012	uint8_t *invalidArgument(void){
+_invalidArgument:
+; 1013		ErrorCode = "Invalid Argument";
+	LD	BC,L__392
+	LD	(_ErrorCode),BC
+	OR	A,A
+; 1014		return 0;
+	SBC	HL,HL
+; 1015	}
+	RET	
+
+
+;**************************** _invalidArgument ***************************
+;Name                         Addr/Register   Size   Type
+;_ErrorCode                          IMPORT      3   variable
+
+
+; Stack Frame Size: 6 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__392:
+	DB	"Invalid Argument"
+	DB	0
+	XREF _checkIncludes:ROM
+	XREF _markUndefLabel:ROM
+	XREF _ErrorCode:ROM
+	XREF _ADDR_BYTES:ROM
+	XREF _strncmp:ROM
+	XREF _memset:ROM
+	XREF _memcpy:ROM
+	XREF __idivs:ROM
+	XREF __imuls:ROM
+	XREF __imulu:ROM
+	XREF __ineg:ROM
+	XREF __ior:ROM
+	XREF __iand:ROM
+	XREF __bshl:ROM
+	XREF __irems:ROM
+	XREF __ixor:ROM
+	XREF __ishrs:ROM
+	XREF __ishl:ROM
+	XREF __ildix:ROM
+	XREF __istix:ROM
+	XREF __frameset0:ROM
+	XREF __frameset:ROM
+	XREF __setflag:ROM
+	XREF __icmpzero:ROM
+	XREF __ishl_b:ROM
+	XDEF _invalidArgument
+	XDEF _getCondition
+	XDEF _getIrOff
+	XDEF _getRArgN
+	XDEF _checkRArg
+	XDEF _digitValue
+	XDEF _isIrOff
+	XDEF _isNumber
+	XDEF _checkRRArg
+	XDEF _getNumber
+	XDEF _OpcodesX
+	XDEF _OpcodesT
+	XDEF _OpcodesS
+	XDEF _OpcodesR
+	XDEF _OpcodesP
+	XDEF _OpcodesO
+	XDEF _OpcodesN
+	XDEF _OpcodesM
+	XDEF _OpcodesL
+	XDEF _OpcodesJ
+	XDEF _OpcodesI
+	XDEF _OpcodesF
+	XDEF _OpcodesE
+	XDEF _OpcodesD
+	XDEF _OpcodesC
+	XDEF _OpcodesB
+	XDEF _OpcodesA
+	XDEF _clearBuffer
+	XDEF _buffer
+	END

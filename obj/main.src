@@ -1,0 +1,2391 @@
+; Zilog eZ80 ANSI C Compiler Release 3.4
+; -optsize -noreduceopt -nomodsect -peephole -globalopt
+; -localcse -const=ROM 
+	FILE	"SRC\MAIN.C"
+	.assume ADL=1
+	SEGMENT STRSECT
+L__0:
+	DB	"_BASMtmp"
+	DB	0
+	SEGMENT DATA
+_TEMP_FILE:
+	DW24	L__0
+_ADDR_BYTES:
+	DB	3
+_assembling_line:
+	DW	0
+	DB	0
+_ORIGIN:
+	DW	43137
+	DB	209
+	SEGMENT BSS
+_DATA_STACK:
+	DS	6144
+	SEGMENT DATA
+_DATA_SP:
+	DW	0
+	DB	0
+_ErrorCode:
+	DW24	0
+	SEGMENT BSS
+_O_FILE_ORG:
+	DS	3
+_first_include:
+	DS	3
+_last_include:
+	DS	3
+;    1	/*
+;    2	 *--------------------------------------
+;    3	 * Program Name: BASM 3
+;    4	 * Author: Adam "beckadamtheinventor" Beckingham
+;    5	 * License: GPL3
+;    6	 * Description: An assembler for the eZ80 microprocessor, for the TI-84+CE line of graphing calculators
+;    7	 *--------------------------------------
+;    8	*/
+;    9	
+;   10	#include <stdbool.h>
+;   11	#include <stddef.h>
+;   12	#include <stdint.h>
+;   13	#include <tice.h>
+;   14	
+;   15	#include <math.h>
+;   16	#include <stdio.h>
+;   17	#include <stdlib.h>
+;   18	#include <string.h>
+;   19	
+;   20	#include <fileioc.h>
+;   21	
+;   22	#include "opcodes.h"
+;   23	
+;   24	#define min(a,b) a<b?a:b
+;   25	#define max(a,b) a>b?a:b
+;   26	#define write(a,b,c) if (b){ti_Write(a,b,1,c);}
+;   27	
+;   28	
+;   29	void *readTokens(char *buffer,unsigned int amount,void *ptr);
+;   30	void markUndefLabel(const uint8_t *data);
+;   31	void markDefLabel(const uint8_t *data,int org);
+;   32	int assemble(const char *inFile, char *outFile);
+;   33	uint8_t *getEmitData(const char *name);
+;   34	uint8_t *checkIncludes(const char *name);
+;   35	uint8_t *searchIncludeFile(const char *fname, const char *cname);
+;   36	uint8_t *emitNumber(const char *name,uint8_t bytes);
+;   37	int includeFile(const char *fname);
+;   38	
+;   39	void error(const char *str,const char *word);
+;   40	void print(const char *str);
+;   41	void printX(const char *str,int amt);
+;   42	void printAt(const char *str,uint8_t x,uint8_t y);
+;   43	void printXAt(const char *str,int amt,uint8_t x,uint8_t y);
+;   44	char *trimWord(char *str);
+;   45	char *upperCaseStr(char *str);
+;   46	sk_key_t pause(void);
+;   47	
+;   48	
+;   49	typedef struct __include_entry_t {
+;   50		char fname[8];
+;   51		void *next;
+;   52	} include_entry_t;
+;   53	
+;   54	
+;   55	const char *TEMP_FILE = "_BASMtmp";
+;   56	
+;   57	uint8_t ADDR_BYTES = 3;
+;   58	unsigned int assembling_line = 0;
+;   59	unsigned int ORIGIN = 0xD1A881; //usermem
+;   60	#define MAX_STACK 2048
+;   61	int *DATA_STACK[MAX_STACK];
+;   62	int DATA_SP = 0;
+;   63	char *ErrorCode = 0;
+;   64	int O_FILE_ORG;
+;   65	
+;   66	include_entry_t *first_include;
+;   67	include_entry_t *last_include;
+	SEGMENT CODE
+;   68	
+;   69	
+;   70	void main(void){
+_main:
+	LD	HL,-29
+	CALL	__frameset
+;   71		ti_var_t fp,fp2;
+;   72		char inFile[9];
+;   73		char outFile[9];
+;   74		string_t *ptr;
+;   75		uint8_t vt;
+;   76	
+;   77		ti_CloseAll();
+	CALL	_ti_CloseAll
+;   78		os_ClrHomeFull();
+	LD	BC,_asm_ClrLCDFull
+	PUSH	BC
+	CALL	__OS
+	POP	BC
+	LD	BC,_asm_HomeUp
+	PUSH	BC
+	CALL	__OS
+	POP	BC
+	LD	BC,_asm_DrawStatusBar
+	PUSH	BC
+	CALL	__OS
+	POP	BC
+;   79		if ((ptr = os_RclAns(&vt))&&vt==4){
+	PEA	IX+-8
+	CALL	_os_RclAns
+	POP	BC
+	LD	(IX+-5),HL
+	CALL	__icmpzero
+	JR	Z,L_14
+	LD	A,(IX+-8)
+	CP	A,4
+	JR	NZ,L_14
+;   80			readTokens(&inFile,min(8,ptr->len),ptr->data);
+	LD	IY,(IX+-5)
+	LD	BC,(IY+0)
+	LD	(IX+-7),C
+	LD	(IX+-6),B
+	LD	BC,(IX+-7)
+	CALL	__stoiu
+	LD	BC,HL
+	LD	HL,8
+	OR	A,A
+	SBC	HL,BC
+	CALL	__setflag
+	JP	P,L_5
+	LD	BC,8
+	LD	(IX+-11),BC
+	JR	L_6
+L_5:
+	LD	BC,(IX+-7)
+	CALL	__stoiu
+	LD	(IX+-11),HL
+L_6:
+	LD	IY,(IX+-5)
+	PEA	IY+2
+	LD	BC,(IX+-11)
+	PUSH	BC
+	PEA	IX+-29
+	CALL	_readTokens
+	POP	BC
+	POP	BC
+	POP	BC
+;   81			os_PutStrFull("Input file:");
+	LD	BC,L__4
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;   82			os_PutStrFull(&inFile);
+	PEA	IX+-29
+	CALL	_os_PutStrFull
+	POP	BC
+;   83			outFile[0] = 0x41;
+	LD	(IX+-20),65
+;   84			outFile[1] = 0;
+	LEA	HL,IX+-20
+;   85			if (assemble(&inFile,&outFile)){
+	PEA	IX+-20
+	PEA	IX+-29
+	INC	HL
+	LD	(HL),0
+	CALL	_assemble
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_12
+;   86				if (!outFile[0]){
+	LD	A,(IX+-20)
+	OR	A,A
+	JR	NZ,L_10
+;   87					error("No output program!","");
+	LD	BC,L__7
+	PUSH	BC
+	LD	BC,L__8
+	PUSH	BC
+	CALL	_error
+	POP	BC
+	POP	BC
+;   88				} else {
+	JR	L_16
+L_10:
+;   89					fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
+	LD	BC,22
+	PUSH	BC
+	LD	BC,L__9
+	PUSH	BC
+	LD	BC,(_TEMP_FILE)
+	PUSH	BC
+	CALL	_ti_OpenVar
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-1),A
+;   90					fp = ti_OpenVar(&outFile,"w",TI_PPRGM_TYPE);
+	LD	BC,6
+	PUSH	BC
+	LD	BC,L__10
+	PUSH	BC
+	PEA	IX+-20
+	CALL	_ti_OpenVar
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-2),A
+;   91					write(ti_GetDataPtr(fp2),ti_GetSize(fp2),fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetSize
+	POP	BC
+	CALL	__scmpzero
+	JR	Z,L_8
+	LD	C,(IX+-2)
+	LD	B,0
+	PUSH	BC
+	LD	BC,1
+	PUSH	BC
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetSize
+	POP	BC
+	LD	BC,HL
+	CALL	__stoiu
+	PUSH	HL
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetDataPtr
+	POP	BC
+	PUSH	HL
+	CALL	_ti_Write
+	POP	BC
+	POP	BC
+	POP	BC
+	POP	BC
+L_8:
+;   92					ti_Close(fp);
+	LD	C,(IX+-2)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Close
+	POP	BC
+;   93					ti_Close(fp2);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Close
+	POP	BC
+;   94					print("Assembled Successfuly!");
+	LD	BC,L__12
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;   95					print("Output file:");
+	LD	BC,L__13
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;   96					print(&outFile);
+	PEA	IX+-20
+	CALL	_print
+	POP	BC
+;   97				}
+;   98			} else {
+	JR	L_16
+L_12:
+;   99				print("Abort.");
+	LD	BC,L__14
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;  100			}
+;  101		} else {
+	JR	L_16
+L_14:
+;  102			print("Error: Could not open Ans");
+	LD	BC,L__15
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;  103		}
+L_16:
+;  104		pause();
+	CALL	_pause
+;  105		ti_CloseAll();
+	CALL	_ti_CloseAll
+;  106	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _main ***************************
+;Name                         Addr/Register   Size   Type
+;_pause                              IMPORT  -----   function
+;_print                              IMPORT  -----   function
+;_ti_Close                           IMPORT  -----   function
+;_ti_GetDataPtr                      IMPORT  -----   function
+;_ti_Write                           IMPORT  -----   function
+;_ti_GetSize                         IMPORT  -----   function
+;_TEMP_FILE                          STATIC      3   variable
+;_ti_OpenVar                         IMPORT  -----   function
+;_error                              IMPORT  -----   function
+;_assemble                           IMPORT  -----   function
+;_os_PutStrFull                      IMPORT  -----   function
+;_readTokens                         IMPORT  -----   function
+;_os_RclAns                          IMPORT  -----   function
+;_asm_DrawStatusBar                  IMPORT  -----   function
+;_asm_HomeUp                         IMPORT  -----   function
+;_asm_ClrLCDFull                     IMPORT  -----   function
+;__OS                                IMPORT  -----   function
+;_ti_CloseAll                        IMPORT  -----   function
+;inFile                               IX-29      9   variable
+;outFile                              IX-20      9   variable
+;temp3                                IX-11      3   variable
+;vt                                    IX-8      1   variable
+;G_0                                   IX-7      2   variable
+;ptr                                   IX-5      3   variable
+;fp                                    IX-2      1   variable
+;fp2                                   IX-1      1   variable
+
+
+; Stack Frame Size: 35 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__4:
+	DB	"Input file:"
+	DB	0
+L__7:
+	DB	0
+L__8:
+	DB	"No output program!"
+	DB	0
+L__9:
+	DB	"r"
+	DB	0
+L__10:
+	DB	"w"
+	DB	0
+L__12:
+	DB	"Assembled Successfuly!"
+	DB	0
+L__13:
+	DB	"Output file:"
+	DB	0
+L__14:
+	DB	"Abort."
+	DB	0
+L__15:
+	DB	"Error: Could not open Ans"
+	DB	0
+	SEGMENT CODE
+;  107	
+;  108	int assemble(const char *inFile, char *outFile){
+_assemble:
+	LD	HL,-536
+	CALL	__frameset
+;  109		ti_var_t fp;
+;  110		uint8_t *ptr;
+;  111		uint8_t *max;
+;  112		uint8_t buffer[512];
+;  113	
+;  114		if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
+	LD	BC,5
+	PUSH	BC
+	LD	BC,L__17
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_ti_OpenVar
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-1),A
+	OR	A,A
+	JR	NZ,L_19
+	OR	A,A
+;  115			return 0;
+	SBC	HL,HL
+	JR	L_65
+;  116		}
+L_19:
+;  117		ptr = ti_GetDataPtr(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetDataPtr
+	POP	BC
+	LD	(IX+-7),HL
+;  118		max = ptr+ti_GetSize(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetSize
+	POP	BC
+	LD	BC,HL
+	CALL	__stoiu
+	LD	BC,(IX+-7)
+	ADD	HL,BC
+	LD	(IX+-11),HL
+;  119		ti_Close(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Close
+	POP	BC
+;  120	
+;  121		fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
+	LD	BC,22
+	PUSH	BC
+	LD	BC,L__19
+	PUSH	BC
+	LD	BC,(_TEMP_FILE)
+	PUSH	BC
+	CALL	_ti_OpenVar
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-1),A
+;  122	
+;  123		assembling_line = 1;
+	LD	BC,1
+	LD	(_assembling_line),BC
+;  124		while (ptr<max) {
+	JR	L_54
+L_55:
+;  125			uint8_t c;
+;  126			uint8_t *edata;
+;  127			O_FILE_ORG = (int)ti_GetDataPtr(fp)-ti_Tell(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetDataPtr
+	POP	BC
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	LD	DE,HL
+	PUSH	BC
+	PUSH	HL
+	LD	HL,DE
+	LD	BC,-535
+	CALL	__istix
+	POP	HL
+	POP	BC
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-536
+	LD	BC,IX
+	ADD	IY,BC
+	LD	(IY),D
+	POP	BC
+	POP	IY
+	CALL	_ti_Tell
+	PUSH	BC
+	LD	BC,-535
+	PUSH	HL
+	CALL	__ildix
+	LD	DE,HL
+	POP	HL
+	POP	BC
+	PUSH	IY
+	PUSH	BC
+	LD	IY,-536
+	LD	BC,IX
+	ADD	IY,BC
+	LD	D,(IY)
+	POP	BC
+	POP	IY
+	POP	BC
+	LD	BC,HL
+	CALL	__stoiu
+	LD	BC,HL
+	LD	HL,DE
+	OR	A,A
+	SBC	HL,BC
+	LD	(_O_FILE_ORG),HL
+;  128	
+;  129	
+;  130			if (os_GetCSC()==sk_Clear){
+	CALL	_os_GetCSC
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,15
+	SBC	HL,BC
+	JR	NZ,L_21
+;  131				ErrorCode = "UserBreakError";
+	LD	BC,L__21
+	LD	(_ErrorCode),BC
+;  132				break;
+	JR	L_59
+;  133			}
+L_21:
+;  134			ErrorCode = 0;
+	LD	BC,0
+	LD	(_ErrorCode),BC
+;  135			if (((uint8_t*)ptr)[0]==0x3F){
+	LD	HL,(IX+-7)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,63
+	SBC	HL,BC
+	JR	NZ,L_51
+;  136				ptr++;
+	LD	BC,(IX+-7)
+	INC	BC
+	LD	(IX+-7),BC
+;  137			} else {
+	JR	L_53
+L_51:
+;  138				ptr=readTokens(&buffer,min(511,max-ptr),ptr);
+	LD	BC,(IX+-7)
+	LD	HL,(IX+-11)
+	OR	A,A
+	SBC	HL,BC
+	LD	(IX+-20),HL
+	LD	BC,HL
+	LD	HL,511
+	OR	A,A
+	SBC	HL,BC
+	JP	P,L_25
+	LD	BC,511
+	LD	(IX+-14),BC
+	JR	L_26
+L_25:
+	LD	BC,(IX+-20)
+	LD	(IX+-14),BC
+L_26:
+	LD	BC,(IX+-7)
+	PUSH	BC
+	LD	BC,(IX+-14)
+	PUSH	BC
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_readTokens
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-7),HL
+;  139				upperCaseStr(&buffer);
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_upperCaseStr
+	POP	BC
+;  140	
+;  141				if (c = *buffer){
+	LD	BC,-532
+	CALL	__bldix
+	LD	(IX+-8),A
+	OR	A,A
+	JR	Z,L_49
+;  142					if (c>=0x41 && c<=0x5A){
+	LD	A,(IX+-8)
+	CP	A,65
+	JR	C,L_46
+	LD	A,90
+	CP	A,(IX+-8)
+	JR	C,L_46
+;  143						if (edata = getEmitData(&buffer)){
+	LD	HL,IX
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_getEmitData
+	POP	BC
+	LD	(IX+-4),HL
+	CALL	__icmpzero
+	JR	Z,L_38
+;  144							write(edata+1,edata[0],fp);
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	OR	A,A
+	JR	Z,L_53
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	LD	BC,1
+	PUSH	BC
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	LD	BC,(IX+-4)
+	INC	BC
+	PUSH	BC
+	CALL	_ti_Write
+	POP	BC
+	POP	BC
+	POP	BC
+	POP	BC
+;  145						} else if (edata = checkIncludes(&buffer)) {
+	JR	L_53
+L_38:
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_checkIncludes
+	POP	BC
+	LD	(IX+-4),HL
+	CALL	__icmpzero
+	JR	Z,L_36
+;  146							write(edata+1,edata[0],fp);
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	OR	A,A
+	JR	Z,L_53
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	LD	BC,1
+	PUSH	BC
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	LD	BC,(IX+-4)
+	INC	BC
+	PUSH	BC
+	CALL	_ti_Write
+	POP	BC
+	POP	BC
+	POP	BC
+	POP	BC
+;  147						} else {
+	JR	L_53
+L_36:
+;  148							if (ErrorCode){
+	LD	HL,(_ErrorCode)
+	CALL	__icmpzero
+	JR	Z,L_33
+;  149								error(ErrorCode,"");
+	LD	BC,L__32
+	PUSH	BC
+	LD	BC,(_ErrorCode)
+	PUSH	BC
+	CALL	_error
+	POP	BC
+	POP	BC
+;  150							} else {
+	JR	L_59
+L_33:
+;  151								error("Undefined word",trimWord(&buffer));
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_trimWord
+	POP	BC
+	PUSH	HL
+	LD	BC,L__33
+	PUSH	BC
+	CALL	_error
+	POP	BC
+	POP	BC
+;  152							}
+;  153							break;
+	JR	L_59
+;  154						}
+;  155					} else if (c>=0x30 && c<=0x39) {
+L_46:
+	LD	A,(IX+-8)
+	CP	A,48
+	JR	C,L_44
+	LD	A,57
+	CP	A,(IX+-8)
+	JR	C,L_44
+;  156						if (edata=emitNumber(&buffer,1)){
+	LD	BC,1
+	PUSH	BC
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_emitNumber
+	POP	BC
+	POP	BC
+	LD	(IX+-4),HL
+	CALL	__icmpzero
+	JR	Z,L_53
+;  157							write(edata+1,edata[0],fp);
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	OR	A,A
+	JR	Z,L_53
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	LD	BC,1
+	PUSH	BC
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	LD	BC,(IX+-4)
+	INC	BC
+	PUSH	BC
+	CALL	_ti_Write
+	POP	BC
+	POP	BC
+	POP	BC
+	POP	BC
+;  158						}
+;  159					} else {
+	JR	L_53
+L_44:
+;  160						error("Syntax",trimWord(&buffer));
+	LD	HL,IX
+	LD	BC,-532
+	ADD	HL,BC
+	LD	BC,HL
+	PUSH	BC
+	CALL	_trimWord
+	POP	BC
+	PUSH	HL
+	LD	BC,L__38
+	PUSH	BC
+	CALL	_error
+	POP	BC
+	POP	BC
+;  161						break;
+	JR	L_59
+;  162					}
+;  163				} else {
+L_49:
+;  164					ptr++;
+	LD	BC,(IX+-7)
+	INC	BC
+	LD	(IX+-7),BC
+;  165				}
+;  166			}
+L_53:
+;  167			assembling_line++;
+	LD	BC,(_assembling_line)
+	INC	BC
+	LD	(_assembling_line),BC
+;  168		}
+L_54:
+	LD	BC,(IX+-11)
+	LD	HL,(IX+-7)
+	OR	A,A
+	SBC	HL,BC
+	JR	C,L_55
+L_59:
+;  169		if (!ErrorCode){
+	LD	HL,(_ErrorCode)
+	CALL	__icmpzero
+	JR	NZ,L_60
+;  170			ti_Rewind(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Rewind
+	POP	BC
+;  171			while (DATA_SP){
+	JR	L_56
+L_57:
+;  172				markDefLabel((void*)(DATA_STACK[DATA_SP]),(int)ti_GetDataPtr(fp));
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetDataPtr
+	POP	BC
+	PUSH	HL
+	LD	HL,(_DATA_SP)
+	LD	BC,HL
+	ADD	HL,HL
+	ADD	HL,BC
+	LD	BC,_DATA_STACK
+	ADD	HL,BC
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_markDefLabel
+	POP	BC
+	POP	BC
+;  173			}
+L_56:
+	LD	HL,(_DATA_SP)
+	CALL	__icmpzero
+	JR	NZ,L_57
+;  174		}
+L_60:
+;  175	
+;  176		ti_Close(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Close
+	POP	BC
+;  177	
+;  178		return !(int)ErrorCode;
+	LD	HL,(_ErrorCode)
+	CALL	__icmpzero
+	JR	NZ,L_62
+;  179	}
+	LD	BC,1
+	LD	(IX+-17),BC
+	JR	L_63
+L_62:
+	LD	BC,0
+	LD	(IX+-17),BC
+L_63:
+	LD	HL,(IX+-17)
+L_65:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _assemble ***************************
+;Name                         Addr/Register   Size   Type
+;_DATA_SP                            STATIC      3   variable
+;_DATA_STACK                         STATIC   6144   variable
+;_markDefLabel                       IMPORT  -----   function
+;_ti_Rewind                          IMPORT  -----   function
+;_emitNumber                         IMPORT  -----   function
+;_trimWord                           IMPORT  -----   function
+;_error                              IMPORT  -----   function
+;_checkIncludes                      IMPORT  -----   function
+;_ti_Write                           IMPORT  -----   function
+;_getEmitData                        IMPORT  -----   function
+;_upperCaseStr                       IMPORT  -----   function
+;_readTokens                         IMPORT  -----   function
+;_ErrorCode                          STATIC      3   variable
+;_os_GetCSC                          IMPORT  -----   function
+;_O_FILE_ORG                         STATIC      3   variable
+;_ti_Tell                            IMPORT  -----   function
+;_assembling_line                    STATIC      3   variable
+;_TEMP_FILE                          STATIC      3   variable
+;_ti_Close                           IMPORT  -----   function
+;_ti_GetSize                         IMPORT  -----   function
+;_ti_GetDataPtr                      IMPORT  -----   function
+;_ti_OpenVar                         IMPORT  -----   function
+;buffer                              IX-532    512   variable
+;G_1                                  IX-20      3   variable
+;temp64                               IX-17      3   variable
+;temp23                               IX-14      3   variable
+;max                                  IX-11      3   variable
+;c                                     IX-8      1   variable
+;ptr                                   IX-7      3   variable
+;edata                                 IX-4      3   variable
+;fp                                    IX-1      1   variable
+;outFile                               IX+9      3   parameter
+;inFile                                IX+6      3   parameter
+
+
+; Stack Frame Size: 548 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__17:
+	DB	"r"
+	DB	0
+L__19:
+	DB	"w"
+	DB	0
+L__21:
+	DB	"UserBreakError"
+	DB	0
+L__32:
+	DB	0
+L__33:
+	DB	"Undefined word"
+	DB	0
+L__38:
+	DB	"Syntax"
+	DB	0
+	SEGMENT CODE
+;  180	
+;  181	void *readTokens(char *buffer,unsigned int amount,void *ptr){
+_readTokens:
+	LD	HL,-9
+	CALL	__frameset
+;  182		unsigned int str_len,i;
+;  183		char *str;
+;  184		uint8_t c;
+;  185		i=0;
+	LD	BC,0
+	LD	(IX+-3),BC
+;  186		while (i<amount && ((uint8_t*)ptr)[0]!=0x3F){
+	JR	L_72
+L_73:
+;  187			str = ti_GetTokenString(&ptr,0,&str_len);
+	PEA	IX+-6
+	LD	BC,0
+	PUSH	BC
+	PEA	IX+12
+	CALL	_ti_GetTokenString
+	POP	BC
+	POP	BC
+	POP	BC
+	LD	(IX+-9),HL
+;  188			if (str_len){
+	LD	HL,(IX+-6)
+	CALL	__icmpzero
+	JR	Z,L_72
+;  189				if ((i+str_len)>=amount){
+	LD	BC,(IX+-6)
+	LD	HL,(IX+-3)
+	ADD	HL,BC
+	OR	A,A
+	LD	BC,(IX+9)
+	SBC	HL,BC
+	JR	C,L_69
+;  190					str_len = amount-i;
+	LD	BC,(IX+-3)
+	LD	HL,(IX+9)
+	OR	A,A
+	SBC	HL,BC
+	LD	(IX+-6),HL
+;  191				}
+L_69:
+;  192				if (str_len){
+	LD	HL,(IX+-6)
+	CALL	__icmpzero
+	JR	Z,L_70
+;  193					memcpy(buffer+i,str,str_len);
+	LD	BC,(IX+-6)
+	PUSH	BC
+	LD	BC,(IX+-9)
+	PUSH	BC
+	LD	BC,(IX+-3)
+	LD	HL,(IX+6)
+	ADD	HL,BC
+	PUSH	HL
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  194				}
+L_70:
+;  195				i+=str_len;
+	LD	BC,(IX+-6)
+	LD	HL,(IX+-3)
+	ADD	HL,BC
+	LD	(IX+-3),HL
+;  196			}
+;  197		}
+L_72:
+	LD	BC,(IX+9)
+	LD	HL,(IX+-3)
+	OR	A,A
+	SBC	HL,BC
+	JR	NC,L_74
+	LD	HL,(IX+12)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,63
+	SBC	HL,BC
+	JR	NZ,L_73
+L_74:
+;  198		buffer[i] = 0;
+	LD	BC,(IX+-3)
+	LD	HL,(IX+6)
+	ADD	HL,BC
+	LD	(HL),0
+;  199		return ptr;
+	LD	HL,(IX+12)
+;  200	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _readTokens ***************************
+;Name                         Addr/Register   Size   Type
+;_memcpy                             IMPORT  -----   function
+;_ti_GetTokenString                  IMPORT  -----   function
+;str                                   IX-9      3   variable
+;str_len                               IX-6      3   variable
+;i                                     IX-3      3   variable
+;ptr                                  IX+12      3   parameter
+;amount                                IX+9      3   parameter
+;buffer                                IX+6      3   parameter
+
+
+; Stack Frame Size: 24 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  201	
+;  202	
+;  203	/* byte (data+0): V&0x03 is number of bytes to emit. 
+;  204	 *                V&0x80 marks value defined, otherwise the assembler needs to calculate it. 
+;  205	 *                If that fails, then throw an undef'd word error.
+;  206	 * word (data+1): offset in output file, to put value once computed.
+;  207	 * long (data+3): stores computed value.
+;  208	 * word (data+6): offset in source file, expression of value to compute.
+;  209	*/
+;  210	
+;  211	void markUndefLabel(const uint8_t *data){
+_markUndefLabel:
+	LD	HL,-21
+	CALL	__frameset
+;  212		memcpy((DATA_STACK[DATA_SP++] = malloc(10)),data,10);
+	LD	BC,10
+	PUSH	BC
+	LD	BC,(_DATA_SP)
+	LD	(IX+-21),BC
+	CALL	_malloc
+	LD	BC,(IX+-21)
+	POP	DE
+	LD	DE,HL
+	LD	HL,(_DATA_SP)
+	LD	(IX+-3),BC	; spill
+	LD	(IX+-6),HL	; spill
+	LD	BC,(IX+-3)	; unspill
+	ADD	HL,HL
+	LD	(IX+-3),BC	; spill
+	LD	BC,(IX+-6)	; unspill
+	ADD	HL,BC
+	LD	BC,(IX+-3)	; unspill
+	LD	(IX+-9),BC	; spill
+	LD	BC,_DATA_STACK
+	LD	(IX+-12),BC	; spill
+	LD	BC,(IX+-9)	; unspill
+	LD	(IX+-9),BC	; spill
+	LD	BC,(IX+-12)	; unspill
+	ADD	HL,BC
+	LD	BC,(IX+-9)	; unspill
+	LD	(HL),DE
+	LD	DE,(_DATA_SP)
+	INC	DE
+	LD	HL,3
+	LD	(IX+-15),HL	; spill
+	LD	HL,10
+	LD	(IX+-18),HL	; spill
+	LD	HL,(IX+-15)	; unspill
+	LD	(IX+-15),HL	; spill
+	LD	HL,(IX+-18)	; unspill
+	PUSH	HL
+	LD	HL,(IX+-15)	; unspill
+	CALL	__imulu
+	LD	(_DATA_SP),DE
+	LD	BC,_DATA_STACK
+	ADD	HL,BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	LD	BC,(HL)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  213	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _markUndefLabel ***************************
+;Name                         Addr/Register   Size   Type
+;_memcpy                             IMPORT  -----   function
+;_DATA_STACK                         STATIC   6144   variable
+;_malloc                             IMPORT  -----   function
+;_DATA_SP                            STATIC      3   variable
+;data                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 30 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  214	
+;  215	void markDefLabel(const uint8_t *data,int org){
+_markDefLabel:
+	LD	HL,-6
+	CALL	__frameset
+;  216		void *ptr = 0;
+	LD	BC,0
+	LD	(IX+-3),BC
+;  217		if (data[0]&0x80){
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	AND	A,128
+	JR	Z,L_81
+;  218			if (data[0]&0x03){
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	AND	A,3
+	JR	Z,L_82
+;  219				memcpy(ptr,data+1,2);
+	LD	BC,2
+	PUSH	BC
+	LD	BC,(IX+6)
+	INC	BC
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  220				memcpy(ptr+O_FILE_ORG,data+3,data[0]&0x03);
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	AND	A,3
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	LD	IY,(IX+6)
+	LEA	BC,IY+3
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  221				free(data);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_free
+	POP	BC
+;  222			}
+;  223		} else {
+	JR	L_82
+L_81:
+;  224			int val;
+;  225			memcpy(ptr,data+6,2);
+	LD	BC,2
+	PUSH	BC
+	LD	IY,(IX+6)
+	LEA	BC,IY+6
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  226			val = getNumber(&ptr);
+	PEA	IX+-3
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-6),HL
+;  227			if (!ErrorCode){
+	LD	HL,(_ErrorCode)
+	CALL	__icmpzero
+	JR	NZ,L_82
+;  228				ptr=0;
+	LD	BC,0
+	LD	(IX+-3),BC
+;  229				memcpy(ptr,data+1,2);
+	LD	BC,2
+	PUSH	BC
+	LD	BC,(IX+6)
+	INC	BC
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  230				memcpy(ptr+O_FILE_ORG,&val,data[0]&0x03);
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	AND	A,3
+	UEXT	HL
+	LD	L,A
+	PUSH	HL
+	PEA	IX+-6
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  231				free(data);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_free
+	POP	BC
+;  232			}
+;  233		}
+;  234	}
+L_82:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _markDefLabel ***************************
+;Name                         Addr/Register   Size   Type
+;_ErrorCode                          STATIC      3   variable
+;_getNumber                          IMPORT  -----   function
+;_free                               IMPORT  -----   function
+;_memcpy                             IMPORT  -----   function
+;val                                   IX-6      3   variable
+;ptr                                   IX-3      3   variable
+;org                                   IX+9      3   parameter
+;data                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 18 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  235	
+;  236	
+;  237	uint8_t *getEmitData(const char *name){
+_getEmitData:
+	LD	HL,-1
+	CALL	__frameset
+;  238		uint8_t c = name[0]-0x41;
+	LD	HL,(IX+6)
+	LD	A,(HL)
+	SUB	A,65
+	LD	(IX+-1),A
+;  239		switch (c){
+	UEXT	HL
+	LD	L,A
+	CALL	__case8
+L__55:
+	DW	17
+	DB	0
+	DW24	L_83	
+
+	DB	1
+	DW24	L_84	
+
+	DB	2
+	DW24	L_85	
+
+	DB	3
+	DW24	L_86	
+
+	DB	4
+	DW24	L_87	
+
+	DB	5
+	DW24	L_88	
+
+	DB	8
+	DW24	L_89	
+
+	DB	9
+	DW24	L_90	
+
+	DB	11
+	DW24	L_91	
+
+	DB	12
+	DW24	L_92	
+
+	DB	13
+	DW24	L_93	
+
+	DB	14
+	DW24	L_94	
+
+	DB	15
+	DW24	L_95	
+
+	DB	17
+	DW24	L_96	
+
+	DB	18
+	DW24	L_97	
+
+	DB	19
+	DW24	L_98	
+
+	DB	23
+	DW24	L_99	
+
+	DW24	L_100	
+
+;  240		case 0:
+L_83:
+;  241			return OpcodesA(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesA
+	POP	BC
+	JR	L_101
+;  242		case 1:
+L_84:
+;  243			return OpcodesB(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesB
+	POP	BC
+	JR	L_101
+;  244		case 2:
+L_85:
+;  245			return OpcodesC(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesC
+	POP	BC
+	JR	L_101
+;  246		case 3:
+L_86:
+;  247			return OpcodesD(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesD
+	POP	BC
+	JR	L_101
+;  248		case 4:
+L_87:
+;  249			return OpcodesE(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesE
+	POP	BC
+	JR	L_101
+;  250		case 5:
+L_88:
+;  251			return OpcodesF(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesF
+	POP	BC
+	JR	L_101
+;  252		case 8:
+L_89:
+;  253			return OpcodesI(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesI
+	POP	BC
+	JR	L_101
+;  254		case 9:
+L_90:
+;  255			return OpcodesJ(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesJ
+	POP	BC
+	JR	L_101
+;  256		case 11:
+L_91:
+;  257			return OpcodesL(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesL
+	POP	BC
+	JR	L_101
+;  258		case 12:
+L_92:
+;  259			return OpcodesM(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesM
+	POP	BC
+	JR	L_101
+;  260		case 13:
+L_93:
+;  261			return OpcodesN(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesN
+	POP	BC
+	JR	L_101
+;  262		case 14:
+L_94:
+;  263			return OpcodesO(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesO
+	POP	BC
+	JR	L_101
+;  264		case 15:
+L_95:
+;  265			return OpcodesP(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesP
+	POP	BC
+	JR	L_101
+;  266		case 17:
+L_96:
+;  267			return OpcodesR(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesR
+	POP	BC
+	JR	L_101
+;  268		case 18:
+L_97:
+;  269			return OpcodesS(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesS
+	POP	BC
+	JR	L_101
+;  270		case 19:
+L_98:
+;  271			return OpcodesT(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesT
+	POP	BC
+	JR	L_101
+;  272		case 23:
+L_99:
+;  273			return OpcodesX(name);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_OpcodesX
+	POP	BC
+	JR	L_101
+;  274		default:
+L_100:
+	OR	A,A
+;  275			return 0;
+	SBC	HL,HL
+;  276		}
+;  277	}
+L_101:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _getEmitData ***************************
+;Name                         Addr/Register   Size   Type
+;_OpcodesX                           IMPORT  -----   function
+;_OpcodesT                           IMPORT  -----   function
+;_OpcodesS                           IMPORT  -----   function
+;_OpcodesR                           IMPORT  -----   function
+;_OpcodesP                           IMPORT  -----   function
+;_OpcodesO                           IMPORT  -----   function
+;_OpcodesN                           IMPORT  -----   function
+;_OpcodesM                           IMPORT  -----   function
+;_OpcodesL                           IMPORT  -----   function
+;_OpcodesJ                           IMPORT  -----   function
+;_OpcodesI                           IMPORT  -----   function
+;_OpcodesF                           IMPORT  -----   function
+;_OpcodesE                           IMPORT  -----   function
+;_OpcodesD                           IMPORT  -----   function
+;_OpcodesC                           IMPORT  -----   function
+;_OpcodesB                           IMPORT  -----   function
+;_OpcodesA                           IMPORT  -----   function
+;c                                     IX-1      1   variable
+;name                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 10 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  278	
+;  279	uint8_t *emitNumber(const char *name,uint8_t bytes){
+_emitNumber:
+	LD	HL,-7
+	CALL	__frameset
+;  280		uint8_t buf[4];
+;  281		int number = getNumber(&name);
+	PEA	IX+6
+	CALL	_getNumber
+	POP	BC
+	LD	(IX+-7),HL
+;  282		memcpy(&buf[1],&number,3);
+	LD	BC,3
+	PUSH	BC
+	PEA	IX+-7
+	LEA	BC,IX+-4
+	INC	BC
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  283		buf[0] = bytes;
+	LD	A,(IX+9)
+	LD	(IX+-4),A
+;  284		return &buf;
+	LEA	HL,IX+-4
+;  285	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _emitNumber ***************************
+;Name                         Addr/Register   Size   Type
+;_memcpy                             IMPORT  -----   function
+;_getNumber                          IMPORT  -----   function
+;number                                IX-7      3   variable
+;buf                                   IX-4      4   variable
+;bytes                                 IX+9      1   parameter
+;name                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 19 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  286	
+;  287	uint8_t *searchIncludeFile(const char *fname, const char *cname){
+_searchIncludeFile:
+	LD	HL,-19
+	CALL	__frameset
+;  288		ti_var_t fp;
+;  289		uint8_t *ptr;
+;  290		char *nptr;
+;  291		int i,elen;
+;  292		if (fp = ti_Open(fname,"r")){
+	LD	BC,L__58
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_ti_Open
+	POP	BC
+	POP	BC
+	LD	(IX+-1),A
+	OR	A,A
+	JR	Z,L_105
+;  293			ptr = ti_GetDataPtr(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_GetDataPtr
+	POP	BC
+	LD	(IX+-7),HL
+;  294			ti_Close(fp);
+	LD	C,(IX+-1)
+	LD	B,0
+	PUSH	BC
+	CALL	_ti_Close
+	POP	BC
+;  295			if (strcmp(ptr,"BASM3.0 INC")){
+	LD	BC,L__60
+	PUSH	BC
+	LD	BC,(IX+-7)
+	PUSH	BC
+	CALL	_strcmp
+	POP	BC
+	POP	BC
+	CALL	__icmpzero
+	JR	Z,L_106
+	OR	A,A
+;  296				return 0;
+	SBC	HL,HL
+	JR	L_115
+;  297			}
+;  298		} else {
+L_105:
+	OR	A,A
+;  299			return 0;
+	SBC	HL,HL
+	JR	L_115
+;  300		}
+L_106:
+;  301		elen = (int)ptr[32];
+;  302		i = min(cname[0]-0x41,cname[0]-0x61);
+	LD	HL,(IX+9)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	LD	IY,HL
+	LEA	BC,IY+-65
+	LD	(IX+-16),BC
+	LD	HL,(IX+9)
+	LD	A,(HL)
+	LD	B,A
+	SEXT	HL
+	LD	L,B
+	LD	IY,HL
+	LEA	IY,IY+-97
+	LD	(IX+-13),IY
+	LD	BC,IY
+	LD	HL,(IX+-16)
+	OR	A,A
+	SBC	HL,BC
+	JP	P,L_109
+	LD	BC,(IX+-16)
+	LD	(IX+-10),BC
+	JR	L_110
+L_109:
+	LD	BC,(IX+-13)
+	LD	(IX+-10),BC
+L_110:
+	LD	BC,(IX+-10)
+	LD	(IX+-19),BC
+;  303		nptr = (char*)((int)ptr[i*3+35]);
+	LD	HL,BC
+	ADD	HL,HL
+	ADD	HL,BC
+	LD	IY,HL
+	LEA	BC,IY+35
+	LD	HL,(IX+-7)
+	ADD	HL,BC
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	LD	(IX+-4),HL
+;  304		while (*nptr){
+	JR	L_112
+L_113:
+;  305			
+;  306			nptr++;
+	LD	BC,(IX+-4)
+	INC	BC
+	LD	(IX+-4),BC
+;  307		}
+L_112:
+	LD	HL,(IX+-4)
+	LD	A,(HL)
+	OR	A,A
+	JR	NZ,L_113
+	OR	A,A
+;  308		return 0;
+	SBC	HL,HL
+;  309	}
+L_115:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _searchIncludeFile ***************************
+;Name                         Addr/Register   Size   Type
+;_strcmp                             IMPORT  -----   function
+;_ti_Close                           IMPORT  -----   function
+;_ti_GetDataPtr                      IMPORT  -----   function
+;_ti_Open                            IMPORT  -----   function
+;i                                    IX-19      3   variable
+;G_2                                  IX-16      3   variable
+;G_3                                  IX-13      3   variable
+;temp107                              IX-10      3   variable
+;ptr                                   IX-7      3   variable
+;nptr                                  IX-4      3   variable
+;fp                                    IX-1      1   variable
+;cname                                 IX+9      3   parameter
+;fname                                 IX+6      3   parameter
+
+
+; Stack Frame Size: 31 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__58:
+	DB	"r"
+	DB	0
+L__60:
+	DB	"BASM3.0 INC"
+	DB	0
+	SEGMENT CODE
+;  310	
+;  311	uint8_t *checkIncludes(const char *name){
+_checkIncludes:
+	LD	HL,-6
+	CALL	__frameset
+;  312		include_entry_t *ent;
+;  313		
+;  314		ent = first_include;
+	LD	BC,(_first_include)
+	LD	(IX+-3),BC
+;  315		do {
+L_117:
+;  316			uint8_t *rv;
+;  317			if (rv = searchIncludeFile(ent->fname,name)){
+	LD	BC,(IX+6)
+	PUSH	BC
+	LD	IY,(IX+-3)
+	PEA	IY+0
+	CALL	_searchIncludeFile
+	POP	BC
+	POP	BC
+	LD	(IX+-6),HL
+	CALL	__icmpzero
+	JR	Z,L_118
+;  318				return rv;
+	LD	HL,(IX+-6)
+	JR	L_120
+;  319			}
+;  320		} while (ent = ent->next);
+L_118:
+	LD	IY,(IX+-3)
+	LD	BC,(IY+8)
+	LD	(IX+-3),BC
+	LD	HL,BC
+	CALL	__icmpzero
+	JR	NZ,L_117
+	OR	A,A
+;  321		return 0;
+	SBC	HL,HL
+;  322	}
+L_120:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _checkIncludes ***************************
+;Name                         Addr/Register   Size   Type
+;_searchIncludeFile                  IMPORT  -----   function
+;_first_include                      STATIC      3   variable
+;rv                                    IX-6      3   variable
+;ent                                   IX-3      3   variable
+;name                                  IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  323	
+;  324	int includeFile(const char *fname){
+_includeFile:
+	LD	HL,-3
+	CALL	__frameset
+;  325		include_entry_t *ent;
+;  326		
+;  327		if (!(ent=malloc(11))){
+	LD	BC,11
+	PUSH	BC
+	CALL	_malloc
+	POP	BC
+	LD	(IX+-3),HL
+	CALL	__icmpzero
+	JR	NZ,L_122
+	OR	A,A
+;  328			return 0;
+	SBC	HL,HL
+	JR	L_123
+;  329		}
+L_122:
+;  330	
+;  331		memcpy(ent->fname,fname,8);
+	LD	BC,8
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	LD	IY,(IX+-3)
+	PEA	IY+0
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  332		last_include->next = ent;
+	LD	BC,(IX+-3)
+	LD	IY,(_last_include)
+	LD	(IY+8),BC
+;  333		last_include = ent;
+	LD	BC,(IX+-3)
+	LD	(_last_include),BC
+;  334		ent->next = NULL;
+	LD	IY,(IX+-3)
+	LD	BC,0
+	LD	(IY+8),BC
+;  335		return (int)ent;
+	LD	HL,(IX+-3)
+;  336	}
+L_123:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _includeFile ***************************
+;Name                         Addr/Register   Size   Type
+;_last_include                       STATIC      3   variable
+;_memcpy                             IMPORT  -----   function
+;_malloc                             IMPORT  -----   function
+;ent                                   IX-3      3   variable
+;fname                                 IX+6      3   parameter
+
+
+; Stack Frame Size: 12 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  337	
+;  338	void error(const char *str,const char *word){
+_error:
+	LD	HL,-80
+	CALL	__frameset
+;  339		char sbuf[80];
+;  340		ErrorCode = str;
+	LD	BC,(IX+6)
+	LD	(_ErrorCode),BC
+;  341		print(str);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;  342		os_PutStrFull(" \"");
+	LD	BC,L__70
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  343		os_PutStrFull(word);
+	LD	BC,(IX+9)
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  344		os_PutStrFull("\"");
+	LD	BC,L__71
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  345		if (assembling_line){
+	LD	HL,(_assembling_line)
+	CALL	__icmpzero
+	JR	Z,L_125
+;  346			sprintf(&sbuf,"Error on line %d",assembling_line);
+	LD	BC,(_assembling_line)
+	PUSH	BC
+	LD	BC,L__73
+	PUSH	BC
+	PEA	IX+-80
+	CALL	_sprintf
+	POP	BC
+	POP	BC
+	POP	BC
+;  347			print(&sbuf);
+	PEA	IX+-80
+	CALL	_print
+	POP	BC
+;  348		}
+;  349	}
+L_125:
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _error ***************************
+;Name                         Addr/Register   Size   Type
+;_sprintf                            IMPORT  -----   function
+;_assembling_line                    STATIC      3   variable
+;_os_PutStrFull                      IMPORT  -----   function
+;_print                              IMPORT  -----   function
+;_ErrorCode                          STATIC      3   variable
+;sbuf                                 IX-80     80   variable
+;word                                  IX+9      3   parameter
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 92 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__70:
+	DB	" \""
+	DB	0
+L__71:
+	DB	"\""
+	DB	0
+L__73:
+	DB	"Error on line %d"
+	DB	0
+	SEGMENT CODE
+;  350	
+;  351	char *trimWord(char *str){
+_trimWord:
+	LD	HL,-3
+	CALL	__frameset
+;  352		uint8_t *i;
+;  353		i = str;
+	LD	BC,(IX+6)
+	LD	(IX+-3),BC
+;  354		while (*i!=' ' && *i) i++;
+	JR	L_128
+L_129:
+	LD	BC,(IX+-3)
+	INC	BC
+	LD	(IX+-3),BC
+L_128:
+	LD	HL,(IX+-3)
+	LD	A,(HL)
+	UEXT	HL
+	LD	L,A
+	OR	A,A
+	LD	BC,32
+	SBC	HL,BC
+	JR	Z,L_130
+	LD	HL,(IX+-3)
+	LD	A,(HL)
+	OR	A,A
+	JR	NZ,L_129
+L_130:
+;  355		*i = 0;
+	LD	HL,(IX+-3)
+	LD	(HL),0
+;  356		return str;
+	LD	HL,(IX+6)
+;  357	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _trimWord ***************************
+;Name                         Addr/Register   Size   Type
+;i                                     IX-3      3   variable
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 12 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  358	
+;  359	void print(const char *str){
+_print:
+	LD	HL,-6
+	CALL	__frameset
+;  360		unsigned int row,col;
+;  361		os_NewLine();
+	CALL	_os_NewLine
+;  362		os_GetCursorPos(&row,&col);
+	PEA	IX+-6
+	PEA	IX+-3
+	CALL	_os_GetCursorPos
+	POP	BC
+	POP	BC
+;  363		if (row>=9){
+	LD	HL,(IX+-3)
+	LD	BC,9
+	OR	A,A
+	SBC	HL,BC
+	JR	C,L_133
+;  364			os_SetCursorPos(0,9);
+	PUSH	BC
+	LD	BC,0
+	PUSH	BC
+	CALL	_os_SetCursorPos
+	POP	BC
+	POP	BC
+;  365			os_PutStrFull("                          ");
+	LD	BC,L__79
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  366			os_SetCursorPos(0,9);
+	LD	BC,9
+	PUSH	BC
+	LD	BC,0
+	PUSH	BC
+	CALL	_os_SetCursorPos
+	POP	BC
+	POP	BC
+;  367		}
+L_133:
+;  368		os_PutStrFull(str);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  369	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _print ***************************
+;Name                         Addr/Register   Size   Type
+;_os_PutStrFull                      IMPORT  -----   function
+;_os_SetCursorPos                    IMPORT  -----   function
+;_os_GetCursorPos                    IMPORT  -----   function
+;_os_NewLine                         IMPORT  -----   function
+;col                                   IX-6      3   variable
+;row                                   IX-3      3   variable
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	SEGMENT STRSECT
+L__79:
+	DB	"                          "
+	DB	0
+	SEGMENT CODE
+;  370	
+;  371	
+;  372	void printX(const char *str,int amt){
+_printX:
+	LD	HL,-3
+	CALL	__frameset
+;  373		char *s = (char*)malloc(amt+1);
+	LD	BC,(IX+9)
+	INC	BC
+	PUSH	BC
+	CALL	_malloc
+	POP	BC
+	LD	(IX+-3),HL
+;  374		memcpy(s,str,amt);
+	LD	BC,(IX+9)
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  375		s[amt] = 0;
+	LD	BC,(IX+9)
+	LD	HL,(IX+-3)
+	ADD	HL,BC
+	LD	(HL),0
+;  376		print(s);
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_print
+	POP	BC
+;  377		free(s);
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_free
+	POP	BC
+;  378	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _printX ***************************
+;Name                         Addr/Register   Size   Type
+;_free                               IMPORT  -----   function
+;_print                              IMPORT  -----   function
+;_memcpy                             IMPORT  -----   function
+;_malloc                             IMPORT  -----   function
+;s                                     IX-3      3   variable
+;amt                                   IX+9      3   parameter
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  379	
+;  380	void printAt(const char *str,uint8_t x,uint8_t y){
+_printAt:
+	CALL	__frameset0
+;  381		os_SetCursorPos(y,x);
+	LD	C,(IX+9)
+	LD	B,0
+	PUSH	BC
+	LD	C,(IX+12)
+	PUSH	BC
+	CALL	_os_SetCursorPos
+	POP	BC
+	POP	BC
+;  382		os_PutStrFull(str);
+	LD	BC,(IX+6)
+	PUSH	BC
+	CALL	_os_PutStrFull
+	POP	BC
+;  383	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _printAt ***************************
+;Name                         Addr/Register   Size   Type
+;_os_PutStrFull                      IMPORT  -----   function
+;_os_SetCursorPos                    IMPORT  -----   function
+;y                                    IX+12      1   parameter
+;x                                     IX+9      1   parameter
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 15 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  384	
+;  385	void printXAt(const char *str,int amt,uint8_t x,uint8_t y){
+_printXAt:
+	LD	HL,-3
+	CALL	__frameset
+;  386		char *s = (char*)malloc(amt+1);
+	LD	BC,(IX+9)
+	INC	BC
+	PUSH	BC
+	CALL	_malloc
+	POP	BC
+	LD	(IX+-3),HL
+;  387		memcpy(s,str,amt);
+	LD	BC,(IX+9)
+	PUSH	BC
+	LD	BC,(IX+6)
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_memcpy
+	POP	BC
+	POP	BC
+	POP	BC
+;  388		s[amt] = 0;
+	LD	BC,(IX+9)
+	LD	HL,(IX+-3)
+	ADD	HL,BC
+	LD	(HL),0
+;  389		printAt(s,x,y);
+	LD	C,(IX+15)
+	LD	B,0
+	PUSH	BC
+	LD	C,(IX+12)
+	PUSH	BC
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_printAt
+	POP	BC
+	POP	BC
+	POP	BC
+;  390		free(s);
+	LD	BC,(IX+-3)
+	PUSH	BC
+	CALL	_free
+	POP	BC
+;  391	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _printXAt ***************************
+;Name                         Addr/Register   Size   Type
+;_free                               IMPORT  -----   function
+;_printAt                            IMPORT  -----   function
+;_memcpy                             IMPORT  -----   function
+;_malloc                             IMPORT  -----   function
+;s                                     IX-3      3   variable
+;y                                    IX+15      1   parameter
+;x                                    IX+12      1   parameter
+;amt                                   IX+9      3   parameter
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 21 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  392	
+;  393	char *upperCaseStr(char *str){
+_upperCaseStr:
+	LD	HL,-11
+	CALL	__frameset
+;  394		char *ptr;
+;  395		unsigned char c;
+;  396		uint8_t a;
+;  397		ptr = str;
+	LD	BC,(IX+6)
+	LD	(IX+-4),BC
+;  398		while (c=*ptr++){
+	JR	L_144
+L_145:
+;  399			a = min(c-0x41,c-0x61);
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	LD	IY,HL
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	LEA	BC,IY+-65
+	LD	IY,HL
+	LEA	DE,IY+-97
+	LD	HL,BC
+	OR	A,A
+	SBC	HL,DE
+	JP	P,L_141
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	LD	IY,HL
+	LEA	IY,IY+-65
+	LD	(IX+-8),IY
+	JR	L_142
+L_141:
+	LD	A,(IX+-1)
+	UEXT	HL
+	LD	L,A
+	LD	IY,HL
+	LEA	IY,IY+-97
+	LD	(IX+-8),IY
+L_142:
+	LD	A,(IX+-8)
+	LD	(IX+-5),A
+;  400			if (a<26){
+	CP	A,26
+	JR	NC,L_144
+;  401				*ptr = 0x41+a;
+	LD	HL,(IX+-4)
+	LD	A,(IX+-5)
+	ADD	A,65
+	LD	(HL),A
+;  402			}
+;  403		}
+L_144:
+	LD	BC,(IX+-4)
+	LD	(IX+-11),BC
+	LD	HL,BC
+	LD	A,(HL)
+	LD	(IX+-1),A
+	LD	BC,(IX+-4)
+	INC	BC
+	LD	(IX+-4),BC
+	LD	A,(IX+-1)
+	OR	A,A
+	JR	NZ,L_145
+;  404		return str;
+	LD	HL,(IX+6)
+;  405	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _upperCaseStr ***************************
+;Name                         Addr/Register   Size   Type
+;temp139                               IX-8      3   variable
+;a                                     IX-5      1   variable
+;ptr                                   IX-4      3   variable
+;c                                     IX-1      1   variable
+;str                                   IX+6      3   parameter
+
+
+; Stack Frame Size: 20 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+;  406	
+;  407	sk_key_t pause(void){
+_pause:
+	LD	HL,-1
+	CALL	__frameset
+;  408		sk_key_t k;
+;  409		while (!(k=os_GetCSC()));
+L_149:
+	CALL	_os_GetCSC
+	LD	(IX+-1),A
+	OR	A,A
+	JR	Z,L_149
+;  410		return k;
+	LD	A,(IX+-1)
+;  411	}
+	LD	SP,IX
+	POP	IX
+	RET	
+
+
+;**************************** _pause ***************************
+;Name                         Addr/Register   Size   Type
+;_os_GetCSC                          IMPORT  -----   function
+;k                                     IX-1      1   variable
+
+
+; Stack Frame Size: 7 (bytes)
+;       Spill Code: 0 (instruction)
+
+
+	XREF _getNumber:ROM
+	XREF _OpcodesX:ROM
+	XREF _OpcodesT:ROM
+	XREF _OpcodesS:ROM
+	XREF _OpcodesR:ROM
+	XREF _OpcodesP:ROM
+	XREF _OpcodesO:ROM
+	XREF _OpcodesN:ROM
+	XREF _OpcodesM:ROM
+	XREF _OpcodesL:ROM
+	XREF _OpcodesJ:ROM
+	XREF _OpcodesI:ROM
+	XREF _OpcodesF:ROM
+	XREF _OpcodesE:ROM
+	XREF _OpcodesD:ROM
+	XREF _OpcodesC:ROM
+	XREF _OpcodesB:ROM
+	XREF _OpcodesA:ROM
+	XREF _strcmp:ROM
+	XREF _memcpy:ROM
+	XREF _sprintf:ROM
+	XREF _ti_GetDataPtr:ROM
+	XREF _ti_GetTokenString:ROM
+	XREF _ti_GetSize:ROM
+	XREF _ti_Tell:ROM
+	XREF _ti_Rewind:ROM
+	XREF _ti_Write:ROM
+	XREF _ti_Close:ROM
+	XREF _ti_OpenVar:ROM
+	XREF _ti_Open:ROM
+	XREF _ti_CloseAll:ROM
+	XREF _free:ROM
+	XREF _malloc:ROM
+	XREF _asm_DrawStatusBar:ROM
+	XREF _asm_ClrLCDFull:ROM
+	XREF _asm_HomeUp:ROM
+	XREF __OS:ROM
+	XREF _os_GetCSC:ROM
+	XREF _os_RclAns:ROM
+	XREF _os_PutStrFull:ROM
+	XREF _os_GetCursorPos:ROM
+	XREF _os_SetCursorPos:ROM
+	XREF _os_NewLine:ROM
+	XREF __imulu:ROM
+	XREF __stoiu:ROM
+	XREF __ildix:ROM
+	XREF __istix:ROM
+	XREF __bldix:ROM
+	XREF __frameset0:ROM
+	XREF __frameset:ROM
+	XREF __setflag:ROM
+	XREF __scmpzero:ROM
+	XREF __icmpzero:ROM
+	XREF __case8:ROM
+	XDEF _pause
+	XDEF _upperCaseStr
+	XDEF _printXAt
+	XDEF _printAt
+	XDEF _printX
+	XDEF _print
+	XDEF _trimWord
+	XDEF _error
+	XDEF _includeFile
+	XDEF _checkIncludes
+	XDEF _searchIncludeFile
+	XDEF _emitNumber
+	XDEF _getEmitData
+	XDEF _markDefLabel
+	XDEF _markUndefLabel
+	XDEF _readTokens
+	XDEF _assemble
+	XDEF _main
+	XDEF _last_include
+	XDEF _first_include
+	XDEF _O_FILE_ORG
+	XDEF _ErrorCode
+	XDEF _DATA_SP
+	XDEF _DATA_STACK
+	XDEF _ORIGIN
+	XDEF _assembling_line
+	XDEF _ADDR_BYTES
+	XDEF _TEMP_FILE
+	END
