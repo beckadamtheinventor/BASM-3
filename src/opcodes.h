@@ -1,11 +1,18 @@
 
+extern const char *MemoryError;
+
 extern uint8_t ADDR_BYTES;
 extern char *ErrorCode;
 extern char *LAST_LINE;
 extern unsigned int ORIGIN;
+extern uint8_t CURRENT_BYTES;
+extern uint8_t ALLOWLABELS;
+extern ti_var_t gfp;
 
 extern uint8_t *checkIncludes(const char *name);
-extern void markNeededLabel(const char *name);
+extern void setGotoOffset(const char *name);
+extern void defineGoto(uint8_t *name,int val);
+extern int includeFile(const char *fname);
 
 uint8_t *OpcodesA(const char *line);
 uint8_t *OpcodesB(const char *line);
@@ -27,6 +34,7 @@ uint8_t *OpcodesX(const char *line);
 uint8_t *OpcodesNone(const char *line);
 
 int getNumberWrapper(char **line);
+int getNumberWrapperNoLabels(char **line);
 int getNumber(char **line);
 int isNumber(const char *line);
 int isIrOff(const char *line);

@@ -82,6 +82,7 @@ uint8_t *OpcodesB(const char *line){
 uint8_t *OpcodesC(const char *line){
 	if (!strncmp(line,"CP ",3)){
 		if (isNumber(line+3)){
+			CURRENT_BYTES = 1;
 			line+=3;
 			buffer[0]=2;
 			buffer[1]=0xFE;
@@ -137,6 +138,7 @@ uint8_t *OpcodesD(const char *line){
 		}
 	} else if (!strncmp(line,"DJNZ ",5)){
 		int num;
+		CURRENT_BYTES = 1;
 		line+=5;
 		num = getNumberWrapper(&line);
 		if (num<-0x80 || num>=0x80){
@@ -153,6 +155,7 @@ uint8_t *OpcodesD(const char *line){
 	} else if (!strncmp(line,"DB ",3)){
 		uint8_t buf2[65];
 		uint8_t i=1;
+		CURRENT_BYTES = 1;
 		line+=3;
 		do {
 			buf2[i++] = getNumberWrapper(&line);
@@ -166,6 +169,7 @@ uint8_t *OpcodesD(const char *line){
 	} else if (!strncmp(line,"DW ",3)){
 		uint16_t buf2[65];
 		uint8_t i=1;
+		CURRENT_BYTES = 2;
 		line+=3;
 		do {
 			buf2[i++] = getNumberWrapper(&line);
@@ -179,6 +183,7 @@ uint8_t *OpcodesD(const char *line){
 	} else if (!strncmp(line,"DL ",3)){
 		unsigned int buf2[65];
 		uint8_t i=1;
+		CURRENT_BYTES = ADDR_BYTES;
 		line+=3;
 		do {
 			buf2[i++] = getNumberWrapper(&line);
@@ -189,6 +194,10 @@ uint8_t *OpcodesD(const char *line){
 		} while (*(line-1)==',');
 		buf2[0]=i<<16;
 		return (uint8_t*)&buf2+2;
+	} else if (!strncmp(line,"DI",2)){
+		buffer[0]=1;
+		buffer[1]=0xF3;
+		return &buffer;
 	}
 	return 0;
 }
@@ -210,6 +219,10 @@ uint8_t *OpcodesE(const char *line){
 	} else if (!strncmp(line,"EXX",3)){
 		buffer[0]=1;
 		buffer[1]=0xD9;
+		return &buffer;
+	} else if (!strncmp(line,"EI",2)){
+		buffer[0]=1;
+		buffer[1]=0xFB;
 		return &buffer;
 	}
 	return 0;
@@ -252,9 +265,11 @@ uint8_t *OpcodesI(const char *line){
 			if (buffer[0]==2){
 				return invalidArgument();
 			} else {
-				buffer[0]=2;
+				CURRENT_BYTES = 1;
+				buffer[0]=3;
 				buffer[1]=0xED;
 				buffer[2]=o<<3;
+				buffer[3]=getNumberWrapper(&line);
 			}
 		}
 	} else if (!strncmp(line,"INIMR",5)){
@@ -348,6 +363,7 @@ uint8_t *OpcodesJ(const char *line){
 		} else {
 			return invalidArgument();
 		}
+		CURRENT_BYTES = 1;
 		num=getNumberWrapper(&line);
 		if (num<-0x80 || num>=0x80){
 			ErrorCode = "JR Offset out of range";
@@ -359,13 +375,18 @@ uint8_t *OpcodesJ(const char *line){
 		int num;
 		uint8_t cc;
 		line+=3;
-		buffer[0]=ADDR_BYTES+1;
-		if ((cc=getCondition(&line))==0xFF){
-			return 0;
+		CURRENT_BYTES = ADDR_BYTES;
+		if (isNumber(line)){
+			buffer[1]=0xC3;
+		} else {
+			if ((cc=getCondition(&line))==0xFF){
+				return 0;
+			}
+			buffer[1]=0xC2+cc;
 		}
-		buffer[1]=0xC2+cc;
 		num = getNumberWrapper(&line);
-		memcpy(&buffer[2],&num,ADDR_BYTES);
+		memcpy(buffer+2,&num,ADDR_BYTES);
+		buffer[0]=ADDR_BYTES+1;
 		return &buffer;
 	}
 	return 0;
@@ -381,6 +402,7 @@ uint8_t *OpcodesL(const char *line){
 			if (checkRArg(line,0x70)){ //ld (hl),r
 				//return &buffer; optimize!
 			} else if (isNumber(line)){ //ld (hl),$00
+				CURRENT_BYTES = 1;
 				buffer[0]=2;
 				buffer[1]=0x36;
 				buffer[2]=getNumberWrapper(&line);
@@ -399,6 +421,7 @@ uint8_t *OpcodesL(const char *line){
 			}
 		} else if (*line=='(' && isNumber(oldline=line+1)){ //ld ($000000),A
 			int num = getNumberWrapper(&line);
+			CURRENT_BYTES = ADDR_BYTES;
 			line++;
 			if (*line=='A'){
 				buffer[0]=ADDR_BYTES+1;
@@ -422,6 +445,7 @@ uint8_t *OpcodesL(const char *line){
 			}
 			if (*line=='(' && isNumber(line+1) && o==7){ //ld A,($000000)
 				int num;
+				CURRENT_BYTES = ADDR_BYTES;
 				line++;
 				buffer[0] = ADDR_BYTES+1;
 				buffer[1] = 0x3A;
@@ -429,6 +453,7 @@ uint8_t *OpcodesL(const char *line){
 				memcpy(&buffer[2],&num,ADDR_BYTES);
 			} else if (isNumber(line)){ //ld r,$00
 				uint8_t num = getNumberWrapper(&line);
+				CURRENT_BYTES = 1;
 				if (irc){ //ld ixh/l,$00
 					buffer[0]=3;
 					buffer[1]=irc;
@@ -441,6 +466,7 @@ uint8_t *OpcodesL(const char *line){
 				}
 			} else if (iro = isIrOff(line)){ //ld r,(ir+dd)
 				line+=3;
+				CURRENT_BYTES = 1;
 				if (buffer[0]==2){
 					return invalidArgument(); //cant ``ld ixh/l,(ir+dd)``
 				}
@@ -469,6 +495,7 @@ uint8_t *OpcodesL(const char *line){
 			line+=3;
 			if (*line=='(' && isNumber(line+1)){ //ld rr,($000000)
 				int num;
+				CURRENT_BYTES = ADDR_BYTES;
 				line++;
 				getNumberWrapper(&line);
 				if (buffer[0]==2){ //ld ir,($000000)
@@ -488,6 +515,7 @@ uint8_t *OpcodesL(const char *line){
 				}
 			} else if (isNumber(line)){ //ld rr,$000000
 				int num = getNumberWrapper(&line);
+				CURRENT_BYTES = ADDR_BYTES;
 				if (buffer[0]==2){
 					memcpy(&buffer[3],&num,ADDR_BYTES);
 					buffer[0] = ADDR_BYTES+2;
@@ -509,6 +537,7 @@ uint8_t *OpcodesL(const char *line){
 				buffer[1]=0xED;
 			} else if (iro=isIrOff(line)) { //ld rr,(ir+dd)
 				uint8_t dd=getIrOff(&line);
+				CURRENT_BYTES = 1;
 				if (buffer[0]==2){ //ld ir,(ir+dd)
 					if (buffer[1]==0xDD){ //ld ix,(ir+dd)
 						buffer[2]=0x31;
@@ -562,6 +591,7 @@ uint8_t *OpcodesL(const char *line){
 			} else {
 				return invalidArgument();
 			}
+			CURRENT_BYTES = 1;
 			buffer[0]=3;
 			buffer[1]=0xED;
 			buffer[3] = getIrOff(&line);
@@ -605,7 +635,13 @@ uint8_t *OpcodesN(const char *line){
 uint8_t *OpcodesO(const char *line){
 	if (!strncmp(line,"OR ",3)){
 		line+=3;
-		if (!checkRArg(line,0xB0)){
+		if (checkRArg(line,0xB0)){
+		} else if (isNumber(line)) {
+			CURRENT_BYTES = 1;
+			buffer[0]=2;
+			buffer[1]=0xF6;
+			buffer[2]=getNumber(&line);
+		} else {
 			return invalidArgument();
 		}
 	} else if (!strncmp(line,"OUT ",4)){
@@ -618,6 +654,7 @@ uint8_t *OpcodesO(const char *line){
 	} else if (!strncmp(line,"OUT0 (",6)){
 		uint8_t r;
 		line+=6;
+		CURRENT_BYTES = 1;
 		buffer[3] = getNumberWrapper(&line);
 		line++;
 		r = getRArgN(line);
@@ -659,7 +696,7 @@ uint8_t *OpcodesO(const char *line){
 		buffer[1]=0xED;
 		buffer[2]=0xAB;
 	} else if (!strncmp(line,"ORG ",4)){
-		ORIGIN = getNumberWrapper(&line);
+		ORIGIN = getNumberWrapperNoLabels(&line);
 		buffer[0]=0;
 	} else {
 		return 0;
@@ -687,6 +724,7 @@ uint8_t *OpcodesP(const char *line){
 			} else {
 				buffer[2]=0x66;
 			}
+			CURRENT_BYTES = 1;
 			buffer[3]=getIrOff(&line);
 		} else {
 			return invalidArgument();
@@ -727,7 +765,7 @@ uint8_t *OpcodesR(const char *line) {
 	} else if (!strncmp(line,"RES ",4)){
 		uint8_t r,bit;
 		line+=4;
-		bit=getNumberWrapper(&line);
+		bit=getNumberWrapperNoLabels(&line);
 		if (bit<=7){
 			if (r=isIrOff(line)){
 				buffer[0]=4;
@@ -770,7 +808,7 @@ uint8_t *OpcodesR(const char *line) {
 	} else if (!strncmp(line,"RST ",4)){
 		uint8_t n;
 		line+=4;
-		n = getNumberWrapper(&line);
+		n = getNumberWrapperNoLabels(&line);
 		if (!(n&7||n>0x38)){
 			buffer[0]=1;
 			buffer[1]=0xC7+n;
@@ -796,7 +834,14 @@ uint8_t *OpcodesR(const char *line) {
 
 uint8_t *OpcodesS(const char *line){
 	if (!strncmp(line,"SUB ",4)){
-		if (checkRArg(line+4,0x90)){
+		line+=4;
+		if (checkRArg(line,0x90)){
+			return &buffer;
+		} else if (isNumber(line)){
+			buffer[0]=2;
+			buffer[1]=0xD6;
+			CURRENT_BYTES = 1;
+			buffer[2]=getNumberWrapper(&line);
 			return &buffer;
 		}
 		return invalidArgument();
@@ -817,7 +862,7 @@ uint8_t *OpcodesS(const char *line){
 	} else if (!strncmp(line,"SET ",4)){
 		uint8_t r,bit;
 		line+=4;
-		bit=getNumberWrapper(&line);
+		bit=getNumberWrapperNoLabels(&line);
 		if (bit<=7){
 			if (r=isIrOff(line)){
 				buffer[0]=4;
@@ -885,18 +930,28 @@ uint8_t *OpcodesS(const char *line){
 uint8_t *OpcodesT(const char *line){
 	if (!strncmp(line,"TST ",4)){
 		uint8_t c;
-		if ((c=getRArgN(line+4))==0xFF){
-			return invalidArgument();
+		line+=4;
+		if ((c=getRArgN(line))==0xFF){
+			if (isNumber(line)){
+				CURRENT_BYTES = 1;
+				buffer[1]=0xED;
+				buffer[2]=0x64;
+				buffer[3]=getNumberWrapper(&line);
+			} else {
+				return invalidArgument();
+			}
+		} else {
+			buffer[0]=2;
+			buffer[1]=0xED;
+			buffer[2]=(c<<3)+4;
 		}
-		buffer[0]=2;
-		buffer[1]=0xED;
-		buffer[2]=(c<<3)+4;
 		return &buffer;
 	} else if (!strncmp(line,"TSR ",4)){
 		line+=4;
 		buffer[0]=3;
 		buffer[1]=0xED;
 		buffer[2]=0x74;
+		CURRENT_BYTES = 1;
 		buffer[3]=getNumberWrapper(&line);
 		return &buffer;
 	}
@@ -905,17 +960,23 @@ uint8_t *OpcodesT(const char *line){
 
 uint8_t *OpcodesX(const char *line){
 	if (!strncmp(line,"XOR ",4)){
-		if (checkRArg(line+4,0xA8)){
-			return &buffer;
-		} else {
+		line+=4;
+		if (checkRArg(line,0xA8)){
+		} else if (isNumber(line)){
 			buffer[0]=2;
 			buffer[1]=0xEE;
+			CURRENT_BYTES = 1;
 			buffer[2]=getNumberWrapper(&line);
+		} else {
+			return invalidArgument();
 		}
-		return invalidArgument();
+		return &buffer;
 	}
 	return 0;
 }
+
+
+
 
 
 
@@ -924,6 +985,16 @@ int getNumberWrapper(char **line){
 	LAST_LINE = *line;
 	return getNumber(line);
 }
+
+int getNumberWrapperNoLabels(char **line){
+	int val;
+	LAST_LINE = *line;
+	ALLOWLABELS = 0;
+	val = getNumber(line);
+	ALLOWLABELS = 1;
+	return val;
+}
+
 
 int getNumber(char **line){
 	unsigned char c,c2;
@@ -942,10 +1013,29 @@ int getNumber(char **line){
 		if (data=checkIncludes(*line)){
 			if (data[0]){
 				memcpy(&number,data+1,data[0]);
-			} else {
-				markNeededLabel((*line)-1);
-				return 0;
+				return number;
 			}
+		} else {
+			if (ALLOWLABELS){
+				uint8_t *ptr;
+				int i;
+				(*line)--;
+				ptr = *line;
+				while ((unsigned)(*ptr-0x41)<26) {ptr++;};
+				i = (int)ptr - (int)*line;
+				if (ptr=malloc(i+1)){
+					memcpy(ptr,*line,i);
+					ptr[i]=0;
+					defineGoto(ptr,0);
+					setGotoOffset(ptr);
+					ErrorCode = 0;
+				} else {
+					ErrorCode = MemoryError;
+				}
+			} else {
+				ErrorCode = "Labels can't be used here";
+			}
+			return 0;
 		}
 	}
 	while (c=*(*line)++){

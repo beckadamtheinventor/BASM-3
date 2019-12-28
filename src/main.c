@@ -27,9 +27,14 @@
 
 
 void *readTokens(char *buffer,unsigned int amount,void *ptr);
-void markLabelOffset(const uint8_t *name,int value);
-void markDefLabel(uint8_t *name,int val,ti_var_t fp);
-void markNeededLabel(const char *name);
+void setLabelOffset(const uint8_t *name,int value);
+void setGotoOffset(const char *name);
+void setLabelValue(const uint8_t *name,int val);
+int getLabelValue(const char *name);
+int getLabelOffset(const char *name);
+void defineLabel(uint8_t *name,int val);
+void defineGoto(uint8_t *name,int val);
+void UpdateWordStack(void);
 int assemble(const char *inFile, char *outFile);
 uint8_t *getEmitData(const char *name);
 uint8_t *checkIncludes(const char *name);
@@ -46,6 +51,8 @@ char *trimWord(char *str);
 char *upperCaseStr(char *str);
 sk_key_t pause(void);
 
+extern int isNumber(const char *line);
+
 
 typedef struct __include_entry_t {
 	char fname[8];
@@ -54,10 +61,14 @@ typedef struct __include_entry_t {
 
 
 const char *TEMP_FILE = "_BASMtmp";
+const char *TEMP_FILE_2 = "_BASMtm2";
+const char *MemoryError = "Insufficient Memory";
 
 extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
+uint8_t CURRENT_BYTES;
 uint8_t *O_FILE_PTR;
+uint8_t ALLOWLABELS = 1;
 char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0xD1A881; //usermem
@@ -65,9 +76,11 @@ unsigned int ORIGIN = 0xD1A881; //usermem
 int DATA_STACK[MAX_STACK];
 uint8_t *WORD_STACK;
 int DATA_SP = 0;
-int WORD_SP = 0;
+int WORD_SP;
 char *ErrorCode = 0;
-int O_FILE_ORG,I_FILE_ORG;
+int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL;
+
+ti_var_t gfp;
 
 include_entry_t *first_include;
 include_entry_t *last_include;
@@ -97,12 +110,12 @@ void main(void){
 				write(ti_GetDataPtr(fp2),ti_GetSize(fp2),fp);
 				ti_Close(fp);
 				ti_Close(fp2);
-				print("Assembled Successfuly!");
-				print("Output file:");
-				print(&outFile);
+				printAt("Assembled Successfuly!",0,4);
+				printAt("Output file:",0,5);
+				printAt(&outFile,12,5);
 			}
 		} else {
-			print("Abort.");
+			printAt("Aborted.",0,8);
 		}
 	} else {
 		print("Error: Could not open Ans");
@@ -116,6 +129,7 @@ int assemble(const char *inFile, char *outFile){
 	uint8_t *ptr;
 	uint8_t *max;
 	uint8_t buf[512];
+	int i;
 
 	if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
 		return 0;
@@ -124,96 +138,139 @@ int assemble(const char *inFile, char *outFile){
 	max = ptr+ti_GetSize(fp);
 	ti_Close(fp);
 
-	fp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
+
+	printAt("Prescanning...",0,9);
+	gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
 	ErrorCode = 0;
 	while (ptr<max){
 		if (os_GetCSC()==sk_Clear){
 			ErrorCode = "UserBreakError";
 			break;
-		} else if (((uint8_t*)ptr)[0]==0x3F){
+		} else if (*((uint8_t*)ptr)==0x3F){
 			ptr++;
 		} else {
 			uint8_t c;
 			int i=0;
 			ptr=readTokens(&buf,min(511,max-ptr),ptr);
 			upperCaseStr(&buf);
-			do {i++;} while ((c=buf[i])!=':' && c);
-			if (c){
-				uint8_t *data = malloc(i+1);
-				memcpy(data,&buf,i);
-				data[i]=0;
-				markDefLabel(data,0,fp);
+			i = strlen(&buf)-1;
+			if (buf[i]==':'){
+				uint8_t *data;
+				if (data = malloc(i+1)){
+					memcpy(data,&buf,i);
+					data[i]=0;
+					defineLabel(data,0);
+				} else {
+					ErrorCode = MemoryError;
+					break;
+				}
 			}
 		}
 	}
-	if (ErrorCode){
-		return 0;
-	}
-	
-	ti_Close(fp);
+	if (!ErrorCode){
+		UpdateWordStack();
+		printAt("Assembling...  ",0,9);
 
-	fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
-
-	ptr = (uint8_t*)I_FILE_ORG;
-	assembling_line = 1;
-	while (ptr<max) {
-		uint8_t c;
-		uint8_t *edata;
-		O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-ti_Tell(fp);
+		fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
+		ptr = (uint8_t*)I_FILE_ORG;
+		assembling_line = 1;
+		while (ptr<max) {
+			uint8_t c;
+			uint8_t *edata;
+			O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-(O_FILE_TELL=ti_Tell(fp));
 
 
-		if (os_GetCSC()==sk_Clear){
-			ErrorCode = "UserBreakError";
-			break;
-		}
-		ErrorCode = 0;
-		if (((uint8_t*)ptr)[0]==0x3F){
-			ptr++;
-		} else {
-			ptr=readTokens(&buf,min(511,max-ptr),ptr);
-			upperCaseStr(&buf);
+			if (os_GetCSC()==sk_Clear){
+				ErrorCode = "UserBreakError";
+				break;
+			}
+			ErrorCode = 0;
+			if (((uint8_t*)ptr)[0]==0x3F){
+				ptr++;
+			} else {
+				ptr=readTokens(&buf,min(511,max-ptr),ptr);
+				upperCaseStr(&buf);
 
-			if (c = *buf){
-				if (c>=0x41 && c<=0x5A){
-					if (edata = getEmitData(&buf)){
-						write(edata+1,edata[0],fp);
-					} else if (edata = checkIncludes(&buf)) {
-						write(edata+1,edata[0],fp);
-					} else {
-						if (ErrorCode){
-							error(ErrorCode,"");
+				if (c = *buf){
+					if (c>=0x41 && c<=0x5A){
+						if (edata = getEmitData(&buf)){
+							write(edata+1,edata[0],fp);
+						} else if (edata = checkIncludes(&buf)) {
+							write(edata+1,edata[0],fp);
 						} else {
-							if (edata = checkWordStack(&buf)){
+							if (ErrorCode){
+								error(ErrorCode,"");
+								break;
+							} else if (edata = checkWordStack(&buf)){
 								write(edata+1,edata[0],fp);
 							} else {
-								int i;
-								uint8_t *ptr=&buf;
-								while ((c=*ptr)!=':' && c) {ptr++;}
-								if (c){
-									markLabelOffset(&buf,ti_Tell(fp));
+								int i = 0;
+								i = strlen(&buf)-1;
+								if (buf[i]==':'){
+									buf[i]=0; i++;
+									if (buf[i]=='='){
+										uint8_t *ptr = &buf[i+1];
+										setLabelValue(&buf,getNumberWrapper(&ptr));
+									} else if (buf[i]=='+'){
+										uint8_t *ptr = &buf[i+1];
+										setLabelOffset(&buf,ORIGIN+ti_Tell(fp)+getNumberWrapper(&ptr));
+									} else {
+										setLabelOffset(&buf,ORIGIN+ti_Tell(fp));
+									}
+								} else {
+									ErrorCode = "Undefined word";
+									break;
 								}
 							}
 						}
+					} else {
+						error("Syntax",trimWord(&buf));
 						break;
 					}
 				} else {
-					error("Syntax",trimWord(&buf));
-					break;
+					ptr++;
 				}
-			} else {
-				ptr++;
 			}
+			sprintf(&buffer,"line %d",assembling_line);
+			printAt(&buffer,14,9);
+			assembling_line++;
 		}
-		assembling_line++;
-	}
-	if (!ErrorCode){
-		ti_Rewind(fp);
-		while (DATA_SP){
-			markDefLabel((void*)(DATA_STACK[DATA_SP]),(int)ti_GetDataPtr(fp));
+		if (!ErrorCode){
+			printAt("Filling addresses...     ",0,9);
+			i = WORD_SP;
+			do {
+				if (WORD_STACK[i+8]){ //set address for this item.
+					uint8_t *ptr;
+					uint8_t c;
+					uint16_t num;
+					int val = getLabelOffset((uint8_t*)WORD_STACK+i); //get the offset of the label with the same name
+					if (WORD_STACK[i+8] && (num = *(uint16_t*)(&WORD_STACK[i+6]))==0xFFFF){
+						ErrorCode = "Undefined Label";
+						break;
+					}
+					ptr = (uint8_t*)O_FILE_ORG + num;
+					if ((c=*ptr++)==0xED||c==0xCB||c==0xDD||c==0xFD){
+						ptr++;
+					} else if (c==0x10||c==0x18||c==0x20||c==0x28||c==0x30||c==0x38){
+						int i2 = WORD_SP;
+						do {
+							if (WORD_STACK[i2+8]){
+								if (!strcmp((uint8_t*)WORD_STACK+i,(uint8_t*)WORD_STACK+i2)){
+									val = *((uint16_t*)WORD_STACK+i2+3) - val;
+									break;
+								}
+							}
+						} while (i2-=9);
+					} else {
+						val = getLabelValue((uint8_t*)WORD_STACK+i);
+					}
+					memcpy(ptr,&val,WORD_STACK[i+8]);
+				}
+			} while (i-=9);
 		}
 	}
-
 	ti_Close(fp);
+	ti_Close(gfp);
 
 	return !(int)ErrorCode;
 }
@@ -239,39 +296,92 @@ void *readTokens(char *buffer,unsigned int amount,void *ptr){
 	return ptr;
 }
 
-void markNeededLabel(const char *name){
-	int i;
+void setGotoOffset(const char *name){ //set the output offset of an address that needs to be filled in later.
 	uint8_t *data;
-	uint8_t *value;
-	i = WORD_SP;
-	while (i-=8){
-		data = &WORD_STACK[i];
-		if (!strcmp(((char*)data),name)){
-			memcpy(&data+6,&value,2);
+	int i = WORD_SP;
+	do {
+		data = WORD_STACK+i;
+		if (data[8]){ //mark an address pointer that needs to be filled in later
+			if (!strcmp(((char*)data),name)){
+				data[8]=CURRENT_BYTES; //number of bytes needing to be filled
+				memcpy(&data+6,&O_FILE_TELL,2); //offset in output file
+			}
 		}
-	}
+	} while (i-=9);
 }
 
-void markLabelOffset(const uint8_t *name,int value){
-	int i;
+int getLabelValue(const char *name){ //get the value of a label
 	uint8_t *data;
-	i = WORD_SP;
-	while (i-=8){
-		data = &WORD_STACK[i];
-		if (!strcmp(((char*)data),name)){
-			memcpy(&data+3,&value,3);
+	int i = WORD_SP;
+	do {
+		data = WORD_STACK+i;
+		if (!data[8]){ //this is a label.
+			if (!strcmp(((char*)data),name)){ //same name
+				return *(int*)(&data[3]); //return the value
+			}
 		}
-	}
+	} while (i-=9);
+	return 0;
 }
 
-void markDefLabel(uint8_t *name,int val,ti_var_t fp){
-	ti_Write(&name,3,1,fp);
-	ti_Write(&val,3,1,fp);
-	ti_Write("\xFF\xFF",2,1,fp);
+int getLabelOffset(const char *name){ //get the offset of a label
+	uint8_t *data;
+	int i = WORD_SP;
+	do {
+		data = WORD_STACK+i;
+		if (!data[8]){ //this is a label.
+			if (!strcmp(((char*)data),name)){ //same name
+				return *(uint16_t*)(&data[6]); //return the value
+			}
+		}
+	} while (i-=9);
+	return 0;
+}
+
+void setLabelOffset(const uint8_t *name,int value){ //set a label's offset from the file origin.
+	uint8_t *data;
+	int i = WORD_SP;
+	do {
+		data = WORD_STACK+i;
+		if (!data[8]){ //this is a label.
+			if (!strcmp(((char*)data),name)){ //same name
+				memcpy(&data+6,&value,2); //set its offset (from the file origin, hopefuly)
+			}
+		}
+	} while (i-=9);
+}
+
+void setLabelValue(const uint8_t *name,int value){
+	uint8_t *data;
+	int i = WORD_SP;
+	do {
+		data = WORD_STACK+i;
+		if (!data[8]){ //this is a label.
+			if (!strcmp(((char*)data),name)){ //same name
+				memcpy(&data+3,&value,3); //set it's value
+			}
+		}
+	} while (i-=9);
+}
+
+void defineLabel(uint8_t *name,int val){ //write a new label
+	ti_Seek(0,SEEK_END,gfp);
+	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label.
+	ti_Write(&val,3,1,gfp); //write the value of the label.
+	ti_Write("\xFF\xFF\0",3,1,gfp); //write 0xFFFF for the offset, and 0 for the length.
+	UpdateWordStack();
+}
+
+void defineGoto(uint8_t *name,int val){ //write a new goto
+	ti_Seek(0,SEEK_END,gfp);
+	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label to goto.
+	ti_Write(&val,3,1,gfp); //write the value of the label to goto.
+	ti_Write("\xFF\xFF\xFF",3,1,gfp); //write 0xFFFF for my offset, and 0xFF for the length. (to be modified in post-comp)
+	UpdateWordStack();
 }
 
 
-uint8_t *getEmitData(const char *name){
+uint8_t *getEmitData(const char *name){ //opcodes and built-in words
 	uint8_t c = name[0]-0x41;
 	switch (c){
 	case 0:
@@ -341,15 +451,22 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 
 uint8_t *checkWordStack(const char *name){
 	int i = WORD_SP;
-	while (i--){
-		if (!strcmp(WORD_STACK[i],name)){
-			uint8_t buf[4];
-			buf[0]=3;
-			buf[1]=buf[2]=buf[3]=0;
-			return &buf;
+	do {
+		if (WORD_STACK[i+8]){
+			if (!strcmp((uint8_t*)(WORD_STACK+i),name)){
+				uint8_t buf[4] = {3};
+				memcpy(&buf[1],WORD_STACK+i+3,3);
+				return &buf;
+			}
 		}
-	}
+	} while (i-=9);
 	return 0;
+}
+
+void UpdateWordStack(void){
+	ti_Rewind(gfp);
+	WORD_STACK = ti_GetDataPtr(gfp);
+	WORD_SP = ti_GetSize(gfp);
 }
 
 uint8_t *checkIncludes(const char *name){
