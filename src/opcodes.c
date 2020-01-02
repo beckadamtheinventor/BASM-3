@@ -1010,28 +1010,21 @@ int getNumber(char **line){
 	}
 	if (c<0x30||c>0x39){
 		uint8_t *data;
-		if (data=checkIncludes(*line)){
+		char *nbuf;
+		if (!(nbuf=getWord(line))){
+			ErrorCode = MemoryError;
+			return 0;
+		}
+		if (data=checkIncludes(nbuf)){
 			if (data[0]){
 				memcpy(&number,data+1,data[0]);
 				return number;
 			}
 		} else {
 			if (ALLOWLABELS){
-				uint8_t *ptr;
-				int i;
-				(*line)--;
-				ptr = *line;
-				while ((unsigned)(*ptr-0x41)<26) {ptr++;};
-				i = (int)ptr - (int)*line;
-				if (ptr=malloc(i+1)){
-					memcpy(ptr,*line,i);
-					ptr[i]=0;
-					defineGoto(ptr,0);
-					setGotoOffset(ptr);
-					ErrorCode = 0;
-				} else {
-					ErrorCode = MemoryError;
-				}
+				defineGoto(nbuf,0);
+				setGotoOffset(nbuf);
+				ErrorCode = 0;
 			} else {
 				ErrorCode = "Labels can't be used here";
 			}
@@ -1039,7 +1032,7 @@ int getNumber(char **line){
 		}
 	}
 	while (c=*(*line)++){
-		if (c=='?') {
+		if (c=='.') {
 			c=*(*line)++;
 			if (c=='X'){
 				base = 16;
@@ -1265,3 +1258,20 @@ uint8_t *invalidArgument(void){
 	ErrorCode = "Invalid Argument";
 	return 0;
 }
+
+char *getWord(const char **line){
+	char c;
+	char *rv;
+	int amt;
+	char *ptr = *line;
+	while ((c=*(ptr++))>0x40&&c<=0x5A);
+	if (rv=malloc((amt=(int)ptr-(int)*line))+1){
+		memcpy(rv,*line,amt);
+		rv[amt] = 0;
+	} else {
+		ErrorCode = MemoryError;
+	}
+	*line = ptr;
+	return rv;
+}
+

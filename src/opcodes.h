@@ -45,5 +45,6 @@ uint8_t checkRRArg(const char *args,uint8_t base);
 uint8_t checkRArg(const char *args,uint8_t base);
 uint8_t getRArgN(const char *args);
 
+char *getWord(const char **line);
 void clearBuffer(void);
 uint8_t *invalidArgument(void);
