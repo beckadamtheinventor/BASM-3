@@ -6,7 +6,6 @@ extern char *ErrorCode;
 extern char *LAST_LINE;
 extern unsigned int ORIGIN;
 extern uint8_t CURRENT_BYTES;
-extern uint8_t ALLOWLABELS;
 extern ti_var_t gfp;
 
 extern uint8_t *checkIncludes(const char *name);
@@ -28,13 +27,13 @@ uint8_t *OpcodesN(const char *line);
 uint8_t *OpcodesO(const char *line);
 uint8_t *OpcodesP(const char *line);
 uint8_t *OpcodesR(const char *line);
+uint8_t *Opcode_Rot(const char *line,uint8_t base);
 uint8_t *OpcodesS(const char *line);
 uint8_t *OpcodesT(const char *line);
 uint8_t *OpcodesX(const char *line);
 uint8_t *OpcodesNone(const char *line);
 
 int getNumberWrapper(char **line);
-int getNumberWrapperNoLabels(char **line);
 int getNumber(char **line);
 int isNumber(const char *line);
 int isIrOff(const char *line);

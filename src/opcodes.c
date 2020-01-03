@@ -29,11 +29,12 @@ uint8_t *OpcodesA(const char *line){
 		}
 	} else if (!strncmp(line,"ADC ",4)) {
 		if (checkRRArg(line+4,0x4A)){
-			if (buffer[1]==0xDD || buffer[1]==0xFD){
+			if (buffer[0]==2){
 				return invalidArgument();
 			} else {
-				buffer[2] = buffer[1]+0x41;
-				buffer[1] = 0xED;
+				buffer[0]=2;
+				buffer[2]=buffer[1]+0x41;
+				buffer[1]=0xED;
 			}
 			return &buffer;
 		} else if (checkRArg(line+4,0x88)){
@@ -60,7 +61,9 @@ uint8_t *OpcodesB(const char *line){
 		uint8_t r,bit;
 		line+=4;
 		bit=getNumberWrapper(&line);
-		if (bit<=7){
+		if (bit>=8){
+			return invalidArgument();
+		} else {
 			if (r=isIrOff(line)){
 				buffer[0]=4;
 				buffer[1]=r;
@@ -71,10 +74,9 @@ uint8_t *OpcodesB(const char *line){
 				buffer[0]=2;
 				buffer[1]=0xCB;
 				buffer[2]=0x40+r+(bit<<3);
-				return &buffer;
 			}
+			return &buffer;
 		}
-		return invalidArgument();
 	}
 	return 0;
 }
@@ -125,17 +127,20 @@ uint8_t *OpcodesD(const char *line){
 	if (!strncmp(line,"DEC ",4)){
 		line+=4;
 		if (checkRRArg(line,0x0B)){
-			return &buffer;
 		} else if ((o = getRArgN(line))!=0xFF){
-			if (buffer[0]==1){
+			if (*line!='I'){
+				buffer[0]=1;
 				buffer[1]=(o<<3)+0x05;
 			} else {
+				line++;
+				buffer[0]=2;
+				if (*line=='X') buffer[1]=0xDD;
+				else if (*line=='Y') buffer[1]=0xFD;
+				else return invalidArgument();
 				buffer[2]=(o<<3)+0x05;
 			}
-			return &buffer;
-		} else {
-			return invalidArgument();
-		}
+		} else return invalidArgument();
+		return &buffer;
 	} else if (!strncmp(line,"DJNZ ",5)){
 		int num;
 		CURRENT_BYTES = 1;
@@ -248,16 +253,19 @@ uint8_t *OpcodesI(const char *line){
 		uint8_t o;
 		line+=4;
 		if (checkRRArg(line,0x03)){
-			
 		} else if ((o = getRArgN(line))!=0xFF){
-			if (buffer[0]==1){
+			if (*line!='I'){
+				buffer[0]=1;
 				buffer[1]=(o<<3)+0x04;
 			} else {
+				line++;
+				buffer[0]=2;
+				if (*line=='X') buffer[1]=0xDD;
+				else if (*line=='Y') buffer[1]=0xFD;
+				else return invalidArgument();
 				buffer[2]=(o<<3)+0x04;
 			}
-		} else {
-			return invalidArgument();
-		}
+		} else return invalidArgument();
 	} else if (!strncmp(line,"IN0 ",4)){
 		uint8_t o;
 		line+=4;
@@ -376,13 +384,10 @@ uint8_t *OpcodesJ(const char *line){
 		uint8_t cc;
 		line+=3;
 		CURRENT_BYTES = ADDR_BYTES;
-		if (isNumber(line)){
-			buffer[1]=0xC3;
-		} else {
-			if ((cc=getCondition(&line))==0xFF){
-				return 0;
-			}
+		if ((cc=getCondition(&line))!=0xFF){
 			buffer[1]=0xC2+cc;
+		} else {
+			buffer[1]=0xC3;
 		}
 		num = getNumberWrapper(&line);
 		memcpy(buffer+2,&num,ADDR_BYTES);
@@ -397,7 +402,13 @@ uint8_t *OpcodesL(const char *line){
 	if (!strncmp(line,"LD ",3)){
 		uint8_t o,iro;
 		line+=3;
-		if (!strncmp(line,"(HL),",5)){ //ld (hl)
+		if (!strncmp(line,"MB,A",4)){ //ld mb,a
+			buffer[0]=2; buffer[1]=0xED; buffer[2]=0x6D;
+		} else if (!strncmp(line,"A,MB",4)){ //ld a,mb
+			buffer[0]=2; buffer[1]=0xED; buffer[2]=0x6E;
+		} else if (!strncmp(line,"HL,I",4)){
+			buffer[0]=2; buffer[1]=0xED; buffer[2]=0xD7;
+		} else if (!strncmp(line,"(HL),",5)){ //ld (hl)
 			line+=5;
 			if (checkRArg(line,0x70)){ //ld (hl),r
 				//return &buffer; optimize!
@@ -493,7 +504,33 @@ uint8_t *OpcodesL(const char *line){
 			}
 		} else if (checkRRArg(line,0x01)){ //ld rr,X
 			line+=3;
-			if (*line=='(' && isNumber(line+1)){ //ld rr,($000000)
+			if (!strncmp(line,"(HL)",4)){ //ld rr,(hl)
+				if (buffer[0]==2) {
+					if (buffer[1]==0xFD){
+						buffer[2]=0x36;
+					} else {
+						buffer[2]=0x37;
+					}
+				} else {
+					buffer[0]=2;
+					buffer[2]=buffer[1];
+				}
+				buffer[1]=0xED;
+			} else if (iro=isIrOff(line)) { //ld rr,(ir+dd)
+				uint8_t dd=getIrOff(&line);
+				CURRENT_BYTES = 1;
+				if (buffer[0]==2){ //ld ir,(ir+dd)
+					if (buffer[1]==0xDD){ //ld ix,(ir+dd)
+						buffer[2]=0x31;
+					} else { //ld iy,(ir+dd)
+						buffer[2]=0x37;
+					}
+				} else { //ld rr,(ir+dd)
+					buffer[2]=buffer[1]+7;
+				}
+				buffer[0]=3;
+				buffer[1]=iro;
+			} else if (*line=='(' && isNumber(line+1)){ //ld rr,($000000)
 				int num;
 				CURRENT_BYTES = ADDR_BYTES;
 				line++;
@@ -523,36 +560,12 @@ uint8_t *OpcodesL(const char *line){
 					memcpy(&buffer[2],&num,ADDR_BYTES);
 					buffer[0] = ADDR_BYTES+1;
 				}
-			} else if (!strncmp(line,"(HL)",4)){ //ld rr,(hl)
-				if (buffer[0]==2) {
-					if (buffer[1]==0xDD){
-						buffer[2]=0x36;
-					} else {
-						buffer[2]=0x37;
-					}
-				} else {
-					buffer[0]=2;
-					buffer[2]=buffer[1];
-				}
-				buffer[1]=0xED;
-			} else if (iro=isIrOff(line)) { //ld rr,(ir+dd)
-				uint8_t dd=getIrOff(&line);
-				CURRENT_BYTES = 1;
-				if (buffer[0]==2){ //ld ir,(ir+dd)
-					if (buffer[1]==0xDD){ //ld ix,(ir+dd)
-						buffer[2]=0x31;
-					} else { //ld iy,(ir+dd)
-						buffer[2]=0x37;
-					}
-				} else { //ld rr,(ir+dd)
-					buffer[2]=buffer[1]+7;
-				}
-				buffer[0]=3;
-				buffer[1]=iro;
 			} else {
 				return invalidArgument();
 			}
-		} 
+		} else {
+			return invalidArgument();
+		}
 	} else if (!strncmp(line,"LDIR",4)){
 		buffer[0]=2; buffer[1]=0xED; buffer[2]=0xB0;
 	} else if (!strncmp(line,"LDDR",4)){
@@ -562,39 +575,42 @@ uint8_t *OpcodesL(const char *line){
 	} else if (!strncmp(line,"LDD",3)){
 		buffer[0]=2; buffer[1]=0xED; buffer[2]=0xA8;
 	} else if (!strncmp(line,"LEA ",4)){
+		line+=4;
 		if (checkRRArg(line,0x02)){
-			uint8_t cc,c3;
-			line+=2;
-			if (buffer[0]==2){
-				if (buffer[1]==0xDD){
-					cc = buffer[2]+0x10;
-				} else {
-					cc = buffer[2]+0x11;
-				}
-			}
+			uint8_t c3;
+			line+=3;
 			if (*line!='I'){
 				return invalidArgument();
 			}
 			line++;
-			if ((c3=*line)=='X'){
-				if (buffer[1]==0xDD){
-					buffer[2]=0x32;
+			if (buffer[0]==2){
+				if ((c3=*line)=='X'){
+					if (buffer[1]==0xDD){
+						buffer[2]=0x32;
+					} else {
+						buffer[2]=0x54;
+					}
+				} else if (c3=='Y') {
+					if (buffer[1]==0xFD){
+						buffer[2]=0x33;
+					} else {
+						buffer[2]=0x55;
+					}
 				} else {
-					buffer[2]=0x54;
-				}
-			} else if (c3=='Y') {
-				if (buffer[1]==0xFD){
-					buffer[2]=0x33;
-				} else {
-					buffer[2]=0x55;
+					return invalidArgument();
 				}
 			} else {
-				return invalidArgument();
+				buffer[2]=buffer[1];
+				if ((c3=*line)=='Y'){
+					buffer[2]++;
+				} else if (c3!='X') { //acts as the else case
+					return invalidArgument();
+				}
 			}
 			CURRENT_BYTES = 1;
 			buffer[0]=3;
 			buffer[1]=0xED;
-			buffer[3] = getIrOff(&line);
+			buffer[3]=getIrOff(&line);
 		} else {
 			return invalidArgument();
 		}
@@ -696,7 +712,7 @@ uint8_t *OpcodesO(const char *line){
 		buffer[1]=0xED;
 		buffer[2]=0xAB;
 	} else if (!strncmp(line,"ORG ",4)){
-		ORIGIN = getNumberWrapperNoLabels(&line);
+		ORIGIN = getNumberWrapper(&line);
 		buffer[0]=0;
 	} else {
 		return 0;
@@ -736,36 +752,38 @@ uint8_t *OpcodesP(const char *line){
 }
 
 uint8_t *OpcodesR(const char *line) {
-	if (!strncmp(line,"RETN",4)){
+	if (!strncmp(line,"RLC ",4)){
+		return Opcode_Rot(line+4,0x00);
+	} else if (!strncmp(line,"RRC ",4)){
+		return Opcode_Rot(line+4,0x08);
+	} else if (!strncmp(line,"RL ",3)){
+		return Opcode_Rot(line+3,0x10);
+	} else if (!strncmp(line,"RR ",3)){
+		return Opcode_Rot(line+3,0x18);
+	} else if (!strncmp(line,"RETN",4)){
 		buffer[0]=2;
 		buffer[1]=0xED;
 		buffer[2]=0x45;
-		return &buffer;
 	} else if (!strncmp(line,"RETI",4)){
 		buffer[0]=2;
 		buffer[1]=0xED;
 		buffer[2]=0x4D;
-		return &buffer;
 	} else if (!strncmp(line,"RLCA",4)){
 		buffer[0]=1;
 		buffer[1]=0x07;
-		return &buffer;
 	} else if (!strncmp(line,"RRCA",4)){
 		buffer[0]=1;
 		buffer[1]=0x0F;
-		return &buffer;
 	} else if (!strncmp(line,"RLA",3)){
 		buffer[0]=1;
 		buffer[1]=0x17;
-		return &buffer;
 	} else if (!strncmp(line,"RRA",3)){
 		buffer[0]=1;
 		buffer[1]=0x1F;
-		return &buffer;
 	} else if (!strncmp(line,"RES ",4)){
 		uint8_t r,bit;
 		line+=4;
-		bit=getNumberWrapperNoLabels(&line);
+		bit=getNumberWrapper(&line);
 		if (bit<=7){
 			if (r=isIrOff(line)){
 				buffer[0]=4;
@@ -777,72 +795,61 @@ uint8_t *OpcodesR(const char *line) {
 				buffer[0]=2;
 				buffer[1]=0xCB;
 				buffer[2]=0x80+r+(bit<<3);
-				return &buffer;
 			}
-		}
-		return invalidArgument();
-	} else if (!strncmp(line+4,"RLC ",4)){
-		if (checkRArg(line,0x00)){
-			buffer[0]=2;
-			buffer[2]=buffer[1];
-			buffer[1]=0xCB;
-		}
-	} else if (!strncmp(line,"RRC ",4)){
-		if (checkRArg(line+4,0x08)){
-			buffer[0]=2;
-			buffer[2]=buffer[1];
-			buffer[1]=0xCB;
-		}
-	} else if (!strncmp(line,"RL ",3)){
-		if (checkRArg(line+3,0x10)){
-			buffer[0]=2;
-			buffer[2]=buffer[1];
-			buffer[1]=0xCB;
-		}
-	} else if (!strncmp(line,"RR ",3)){
-		if (checkRArg(line+3,0x18)){
-			buffer[0]=2;
-			buffer[2]=buffer[1];
-			buffer[1]=0xCB;
-		}
+		} else return invalidArgument();
 	} else if (!strncmp(line,"RST ",4)){
 		uint8_t n;
 		line+=4;
-		n = getNumberWrapperNoLabels(&line);
+		n = digitValue(line[0])<<4 + digitValue(line[1]);
 		if (!(n&7||n>0x38)){
 			buffer[0]=1;
 			buffer[1]=0xC7+n;
-			return &buffer;
-		}
-		return invalidArgument();
-	} else if (!strncmp(line,"RET ",4)){
-		uint8_t cc;
-		line+=4;
-		buffer[0]=1;
-		if ((cc=getCondition(&line))==0xFF){
-			return 0;
-		}
-		buffer[1]=0xC0+cc;
-		return &buffer;
+		} else return invalidArgument();
 	} else if (!strncmp(line,"RET",3)){
-		buffer[0]=1;
-		buffer[1]=0xC9;
-		return &buffer;
-	}
-	return 0;
+		if (line[4]==' '){
+			uint8_t cc;
+			line+=4;
+			buffer[0]=1;
+			if ((cc=getCondition(&line))==0xFF){
+				return invalidArgument();
+			}
+			buffer[1]=0xC0+cc;
+		} else {
+			buffer[0]=1;
+			buffer[1]=0xC9;
+		}
+	} else return 0;
+	return &buffer;
+}
+
+uint8_t *Opcode_Rot(const char *line,uint8_t base){
+	if (checkRArg(line,base)){
+		buffer[0]=2;
+		buffer[2]=buffer[1];
+		buffer[1]=0xCB;
+	} else if (line[0]=='(' && line[1]=='I'){
+		line+=2;
+		if (*line=='X') buffer[1]=0xDD;
+		else if (*line=='Y') buffer[1]=0xFD;
+		else return invalidArgument();
+		line++;
+		buffer[0]=4;
+		buffer[4]=base+6;
+		buffer[2]=0xCB;
+		buffer[3]=getIrOff(&line);
+	} else return invalidArgument();
+	return &buffer;
 }
 
 uint8_t *OpcodesS(const char *line){
 	if (!strncmp(line,"SUB ",4)){
 		line+=4;
 		if (checkRArg(line,0x90)){
-			return &buffer;
 		} else if (isNumber(line)){
 			buffer[0]=2;
 			buffer[1]=0xD6;
 			CURRENT_BYTES = 1;
 			buffer[2]=getNumberWrapper(&line);
-			return &buffer;
 		}
 		return invalidArgument();
 	} else if (!strncmp(line,"SBC ",4)){
@@ -851,18 +858,16 @@ uint8_t *OpcodesS(const char *line){
 			buffer[0]=2;
 			buffer[2]=buffer[1];
 			buffer[1]=0xED;
-			return &buffer;
-		} else if (checkRArg(line,0x98)){
-			return &buffer;
+		} else if (!checkRArg(line,0x98)){
+			return invalidArgument();
 		}
 	} else if (!strncmp(line,"SCF",3)){
 		buffer[0]=1;
 		buffer[1]=0x37;
-		return &buffer;
 	} else if (!strncmp(line,"SET ",4)){
 		uint8_t r,bit;
 		line+=4;
-		bit=getNumberWrapperNoLabels(&line);
+		bit=getNumberWrapper(&line);
 		if (bit<=7){
 			if (r=isIrOff(line)){
 				buffer[0]=4;
@@ -874,10 +879,10 @@ uint8_t *OpcodesS(const char *line){
 				buffer[0]=2;
 				buffer[1]=0xCB;
 				buffer[2]=0xC0+r+(bit<<3);
-				return &buffer;
 			}
+		} else {
+			return invalidArgument();
 		}
-		return invalidArgument();
 	} else if (!strncmp(line,"SLA ",4)){
 		uint8_t r;
 		line+=4;
@@ -891,7 +896,8 @@ uint8_t *OpcodesS(const char *line){
 			buffer[0]=2;
 			buffer[1]=0xCB;
 			buffer[2]=0x20+r;
-			return &buffer;
+		} else {
+			return invalidArgument();
 		}
 	} else if (!strncmp(line,"SRA ",4)){
 		uint8_t r;
@@ -906,7 +912,8 @@ uint8_t *OpcodesS(const char *line){
 			buffer[0]=2;
 			buffer[1]=0xCB;
 			buffer[2]=0x28+r;
-			return &buffer;
+		} else {
+			return invalidArgument();
 		}
 	} else if (!strncmp(line,"SRL ",4)){
 		uint8_t r;
@@ -921,19 +928,22 @@ uint8_t *OpcodesS(const char *line){
 			buffer[0]=2;
 			buffer[1]=0xCB;
 			buffer[2]=0x30+r;
-			return &buffer;
+		} else {
+			return invalidArgument();
 		}
+	} else {
+		return 0;
 	}
-	return 0;
+	return &buffer;
 }
 
 uint8_t *OpcodesT(const char *line){
+	CURRENT_BYTES = 1;
 	if (!strncmp(line,"TST ",4)){
 		uint8_t c;
 		line+=4;
 		if ((c=getRArgN(line))==0xFF){
 			if (isNumber(line)){
-				CURRENT_BYTES = 1;
 				buffer[1]=0xED;
 				buffer[2]=0x64;
 				buffer[3]=getNumberWrapper(&line);
@@ -945,17 +955,22 @@ uint8_t *OpcodesT(const char *line){
 			buffer[1]=0xED;
 			buffer[2]=(c<<3)+4;
 		}
-		return &buffer;
 	} else if (!strncmp(line,"TSR ",4)){
 		line+=4;
 		buffer[0]=3;
 		buffer[1]=0xED;
 		buffer[2]=0x74;
-		CURRENT_BYTES = 1;
 		buffer[3]=getNumberWrapper(&line);
-		return &buffer;
+	} else if (!strncmp(line,"TSTIO ",6)){
+		line+=6;
+		buffer[0]=3;
+		buffer[1]=0xED;
+		buffer[2]=0x74;
+		buffer[3]=getNumberWrapper(&line);
+	} else {
+		return invalidArgument();
 	}
-	return 0;
+	return &buffer;
 }
 
 uint8_t *OpcodesX(const char *line){
@@ -986,15 +1001,6 @@ int getNumberWrapper(char **line){
 	return getNumber(line);
 }
 
-int getNumberWrapperNoLabels(char **line){
-	int val;
-	LAST_LINE = *line;
-	ALLOWLABELS = 0;
-	val = getNumber(line);
-	ALLOWLABELS = 1;
-	return val;
-}
-
 
 int getNumber(char **line){
 	unsigned char c,c2;
@@ -1013,23 +1019,16 @@ int getNumber(char **line){
 		char *nbuf;
 		if (!(nbuf=getWord(line))){
 			ErrorCode = MemoryError;
-			return 0;
-		}
-		if (data=checkIncludes(nbuf)){
+		} else if (data=checkIncludes(nbuf)){
 			if (data[0]){
 				memcpy(&number,data+1,data[0]);
 				return number;
 			}
 		} else {
-			if (ALLOWLABELS){
-				defineGoto(nbuf,0);
-				setGotoOffset(nbuf);
-				ErrorCode = 0;
-			} else {
-				ErrorCode = "Labels can't be used here";
-			}
-			return 0;
+			defineGoto(nbuf,0);
+			setGotoOffset(nbuf);
 		}
+		return 0;
 	}
 	while (c=*(*line)++){
 		if (c=='.') {
@@ -1137,7 +1136,8 @@ uint8_t checkRRArg(const char *args,uint8_t base){
 int isNumber(const char *line){
 	uint8_t c1,c2;
 	if (((c1=line[0])=='H' && (c2=line[1])=='L')||(c1=='D' && c2=='E')||
-		(c1=='B' && c2=='C')||(c1=='A' && c2=='F')||(c1=='S' && c2=='P')){
+		(c1=='B' && c2=='C')||(c1=='A' && c2=='F')||(c1=='S' && c2=='P')||
+		(c1=='I'&&(c2=='X'||c2=='Y'))){
 		return 0;
 	}
 	return 1;
@@ -1180,12 +1180,8 @@ uint8_t checkRArg(const char *args,uint8_t base){
 uint8_t getRArgN(const char *args){
 	uint8_t c,o;
 	c = args[0]; o=0xFF;
-	if (c=='('){
-		if (!strncmp(args+1,"HL)",3)){
-			o=6;
-		} else {
-			o=-1;
-		}
+	if (!strncmp(args,"(HL)",4)){
+		o=6;
 	} else if (c=='I'){
 		if (args[2]=='H')      o=4;
 		else if (args[2]=='L') o=5;
@@ -1194,9 +1190,7 @@ uint8_t getRArgN(const char *args){
 		}
 	} else {
 		uint8_t c2;
-		if ((c2=args[1])!=',' && c2!=' ' && c2){
-			return 0xFF;
-		}
+		if ((c2=args[1])!=',' && c2!=' ' && c2) return 0xFF;
 		else if (c=='A') o=7;
 		else if (c=='B') o=0;
 		else if (c=='C') o=1;
@@ -1216,6 +1210,8 @@ uint8_t getIrOff(const char **line){
 	} else if (c=='-'){
 		(*line)++;
 		return -getNumber(line);
+	} else {
+		return 0;
 	}
 }
 
@@ -1245,12 +1241,7 @@ uint8_t getCondition(const char **line){
 	} else if (!strncmp(*line,"M,",2)) {
 		c=0x38;
 		(*line)+=3;
-	} else if (isNumber(*line)) {
-		c=0x09;
-	} else {
-		invalidArgument();
-		return 0xFF;
-	}
+	} else return 0xFF;
 	return c;
 }
 

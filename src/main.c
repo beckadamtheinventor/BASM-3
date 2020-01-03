@@ -46,7 +46,6 @@ extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
 uint8_t CURRENT_BYTES;
 uint8_t *O_FILE_PTR;
-uint8_t ALLOWLABELS = 1;
 char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0xD1A881; //usermem
@@ -195,9 +194,7 @@ int assemble(const char *inFile, char *outFile){
 				break;
 			}
 			ErrorCode = 0;
-			if (((uint8_t*)ptr)[0]==0x3F){
-				ptr++;
-			} else {
+			if (*ptr==0x3F){
 				ptr=readTokens(&buf,min(511,max-ptr),ptr);
 				upperCaseStr(&buf);
 
@@ -222,26 +219,26 @@ int assemble(const char *inFile, char *outFile){
 									setLabelValueValue(&buf,ORIGIN+ti_Tell(fp));
 								}
 							} else {
-								ErrorCode = "Undefined word";
+								if (!ErrorCode) ErrorCode = "Undefined word";
 							}
 						}
 					} else {
-						ErrorCode = "Syntax";
+						if (!ErrorCode) ErrorCode = "Syntax";
 					}
 				} else {
 					ptr++;
 				}
-			}
-			if (ErrorCode){
-				if (ErrorWord){
-					error(ErrorCode,ErrorWord);
-				} else {
-					error(ErrorCode,trimWord(&buf));
+				sprintf(&buffer,"line %d",assembling_line);
+				printAt(&buffer,14,9);
+				if (ErrorCode){
+					if (ErrorWord){
+						error(ErrorCode,ErrorWord);
+					} else {
+						error(ErrorCode,trimWord(&buf));
+					}
+					break;
 				}
-				break;
 			}
-			sprintf(&buffer,"line %d",assembling_line);
-			printAt(&buffer,14,9);
 			assembling_line++;
 		}
 		if (!ErrorCode){
@@ -258,15 +255,23 @@ int assemble(const char *inFile, char *outFile){
 					lbl = findLabel(gt->name);
 					val = getLabelValue(lbl);
 					ptr = (uint8_t*)gt->offset-gt->org;
-					if (!((c=*ptr++)&0xC7) && c&0x38){
-						val = gt->offset - val;
-					} else {
-						if (c==0xED||c==0xCB||c==0xDD||c==0xFD){
-							ptr++;
+					if (c==0xCB && *ptr>=0x40){
+						uint8_t bitn;
+						void *numptr = (void*)gt->value;
+						if ((bitn=getNumber(&numptr))>=8){
+							ErrorCode = "Argument out of range";
+							break;
 						}
+						*ptr = (*ptr&0xC7)|(bitn<<3);
+					} else {
+						if (!((c=*ptr++)&0xC7) && c&0x38){
+							val = gt->offset - val;
+						} else if (c==0xED||c==0xDD||c==0xFD){
+							c = *ptr++;
+						}
+						ti_Seek((int)ptr,SEEK_SET,fp);
+						ti_Write(&val,gt->bytes&3,1,fp);
 					}
-					ti_Seek((int)ptr,SEEK_SET,fp);
-					ti_Write(&val,gt->bytes&3,1,fp);
 				}
 			} while (i--);
 			if (ErrorCode){
@@ -285,7 +290,7 @@ void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr){
 	char *str;
 	uint8_t c;
 	i=0;
-	memset(buffer,0,amount);
+	memset(buffer,0,amount+1);
 	while (i<amount && (*(uint8_t*)ptr)!=0x3F){
 		if (str = ti_GetTokenString(&ptr,0,&str_len)){
 			if (str_len){
@@ -414,8 +419,7 @@ void defineGoto(const char *name,int val){ //write a new goto
 }
 
 uint8_t *getEmitData(const char *name){ //opcodes and built-in words
-	uint8_t c = name[0]-0x41;
-	switch (c){
+	switch (name[0]-0x41){
 	case 0:
 		return OpcodesA(name);
 	case 1:
