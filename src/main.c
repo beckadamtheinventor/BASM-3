@@ -31,7 +31,6 @@ typedef struct __include_entry_t {
 } include_entry_t;
 
 #define SIZEOF_LABEL_T 13
-
 typedef struct _label_{
 	char *name;
 	int value,offset,org;
@@ -46,6 +45,7 @@ extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
 uint8_t CURRENT_BYTES;
 uint8_t *O_FILE_PTR;
+define_entry_t *internal_define_pointers[26];
 char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0xD1A881; //usermem
@@ -110,6 +110,23 @@ void main(void){
 		os_PutStrFull(&inFile);
 		outFile[0] = 0x41;
 		outFile[1] = 0;
+		if (fp2=ti_Open("BASMdata","r")){
+			uint8_t l;
+			uint8_t *ptr = ti_GetDataPtr(fp2);
+			if (strcmp(ptr,"BASM3-OPCODES")){
+				printAt("Malformed BASMdata.8xv",0,8);
+				goto abort;
+			}
+			ptr+=32;
+			for (l=0;l<26;l++){
+				internal_define_pointers[l]=(define_entry_t*)ptr;
+				while (*ptr+=SIZEOF_DEFINE_T); ptr++;
+			}
+			ti_Close(fp2);
+		} else {
+			printAt("Missing BASMdata.8xv",0,8);
+			goto abort;
+		}
 		if (assemble(&inFile,&outFile)){
 			if (!outFile[0]){
 				error("No output program!","");
@@ -124,6 +141,7 @@ void main(void){
 				printAt(&outFile,12,5);
 			}
 		} else {
+			abort:;
 			printAt("Aborted.",0,8);
 		}
 	} else {
@@ -419,44 +437,36 @@ void defineGoto(const char *name,int val){ //write a new goto
 }
 
 uint8_t *getEmitData(const char *name){ //opcodes and built-in words
-	switch (name[0]-0x41){
-	case 0:
-		return OpcodesA(name);
-	case 1:
-		return OpcodesB(name);
-	case 2:
-		return OpcodesC(name);
-	case 3:
-		return OpcodesD(name);
-	case 4:
-		return OpcodesE(name);
-	case 5:
-		return OpcodesF(name);
-	case 8:
-		return OpcodesI(name);
-	case 9:
-		return OpcodesJ(name);
-	case 11:
-		return OpcodesL(name);
-	case 12:
-		return OpcodesM(name);
-	case 13:
-		return OpcodesN(name);
-	case 14:
-		return OpcodesO(name);
-	case 15:
-		return OpcodesP(name);
-	case 17:
-		return OpcodesR(name);
-	case 18:
-		return OpcodesS(name);
-	case 19:
-		return OpcodesT(name);
-	case 23:
-		return OpcodesX(name);
-	default:
-		return 0;
-	}
+	uint8_t *data;
+	uint8_t *emit;
+	if (emit=checkInternal(name)){
+		return emit;
+	} else if (data=processOpcodeLine(name)){
+		define_entry_t *ptr;
+		define_entry_t *lastdirect;
+		uint8_t buf[6];
+		ptr=internal_define_pointers[*data-0x41];
+		while ((ptr++)->bytes){
+			if (!strncmp(data,ptr->opcode,16)){
+				uint8_t c;
+				int i=2;
+				memcpy(&buf,&ptr->bytes,ptr->bytes+1);
+				emit=&buf;
+				if ((c=buf[1])==0xDD||c==0xFD||c==0xED||c==0xCB){
+					i++;
+					if (buf[2]==0xCB){
+						i++;
+					}
+				}
+				emitArgument(&buf[i],name,ptr->flags);
+				break;
+			}
+		}
+		if (emit) return emit;
+		lastdirect = ptr;
+		
+		return emit;
+	} else return data;
 }
 
 uint8_t *searchIncludeFile(const char *fname, const char *cname){
@@ -466,12 +476,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	if (fp = ti_Open(fname,"r")){
 		ptr = ti_GetDataPtr(fp);
 		ti_Close(fp);
-		if (strcmp(ptr,"BASM3.0 INC")){
-			return 0;
-		}
-	} else {
-		return 0;
-	}
+		if (strcmp(ptr,"BASM3.0 INC")) return 0;
+	} else return 0;
 	elen = (int)ptr[32];
 	i = min(cname[0]-0x41,cname[0]-0x61);
 	ptr+=((uint16_t)ptr[i*2+35]);
