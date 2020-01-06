@@ -297,19 +297,20 @@ def sepTable(N,line,a,B=None,F=1):
 N=0
 do=[]
 for line in data.splitlines():
-	if len(line) and N not in [0xDD,0xFD,0xCB,0xED]:
-		if line[20]!='-':
-			do.append(sepTable(N,line[20:36],2,0xDD,F=2))
-			do.append(sepTable(N,line[20:36].replace("IX","IY"),2,0xFD,F=2))
-		if line[3]!='-':
-			do.append(sepTable(N,line[3:20],1))
-		if line[37]!='-':
-			do.append(sepTable(N,line[37:54],2,0xCB,F=1))
-		if line[54]!='-':
-			do.append(sepTable(N,line[54:71].replace("IY","IX"),3,[0xDD,0xCB,0x00],F=2))
-			do.append(sepTable(N,line[54:71],3,[0xFD,0xCB,0x00],F=2))
-		if line[71]!='-':
-			do.append(sepTable(N,line[71:],2,0xED,F=2))
+	if len(line):
+		if N not in [0xDD,0xFD,0xCB,0xED]:
+			if line[3]!='-':
+				do.append(sepTable(N,line[3:20],1))
+			if line[20]!='-':
+				do.append(sepTable(N,line[20:36],2,0xDD,F=2))
+				do.append(sepTable(N,line[20:36].replace("IX","IY"),2,0xFD,F=2))
+			if line[37]!='-':
+				do.append(sepTable(N,line[37:54],2,0xCB,F=1))
+			if line[54]!='-':
+				do.append(sepTable(N,line[54:71].replace("IY","IX"),3,[0xDD,0xCB,0x00],F=2))
+				do.append(sepTable(N,line[54:71],3,[0xFD,0xCB,0x00],F=2))
+			if line[71]!='-':
+				do.append(sepTable(N,line[71:],2,0xED,F=2))
 		N+=1
 
 do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
