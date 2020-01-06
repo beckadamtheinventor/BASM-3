@@ -1,5 +1,5 @@
 
-#define SIZEOF_DEFINE_T 22
+#define SIZEOF_DEFINE_T 18
 #define F_ARG_BYTE 7
 #define F_OFFSET_ARG 1<<3
 #define F_LONG_ARG 1<<4
@@ -9,7 +9,7 @@ typedef struct _define_entry_{
 	uint8_t bytes;
 	uint8_t emit[4];
 	uint8_t flags;
-	char opcode[16];
+	char opcode[12];
 }define_entry_t;
 
 
@@ -31,7 +31,7 @@ extern int includeFile(const char *fname);
 
 char *processOpcodeLine(const char *name);
 int getArgFromLine(const char *line);
-uint8_t *checkInternal(const char *line);
+uint8_t *checkInternal(const char *line,define_entry_t **endptr);
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags);
 bool isRegister(const char *name);
 

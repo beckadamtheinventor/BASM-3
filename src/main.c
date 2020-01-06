@@ -106,43 +106,41 @@ void main(void){
 	os_ClrHomeFull();
 	if ((ptr = os_RclAns(&vt))&&vt==4){
 		readTokens(&inFile,min(8,ptr->len),ptr->data);
-		os_PutStrFull("Input file:");
+		printAt("Input file:",0,0);
 		os_PutStrFull(&inFile);
 		outFile[0] = 0x41;
 		outFile[1] = 0;
 		if (fp2=ti_Open("BASMdata","r")){
 			uint8_t l;
-			uint8_t *ptr = ti_GetDataPtr(fp2);
-			if (strcmp(ptr,"BASM3-OPCODES")){
-				printAt("Malformed BASMdata.8xv",0,8);
-				goto abort;
-			}
-			ptr+=32;
-			for (l=0;l<26;l++){
-				internal_define_pointers[l]=(define_entry_t*)ptr;
-				while (*ptr+=SIZEOF_DEFINE_T); ptr++;
-			}
-			ti_Close(fp2);
-		} else {
-			printAt("Missing BASMdata.8xv",0,8);
-			goto abort;
-		}
-		if (assemble(&inFile,&outFile)){
-			if (!outFile[0]){
-				error("No output program!","");
-			} else {
-				fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
-				fp = ti_OpenVar(&outFile,"w",TI_PPRGM_TYPE);
-				write(ti_GetDataPtr(fp2),ti_GetSize(fp2),fp);
-				ti_Close(fp);
+			uint8_t *org = ti_GetDataPtr(fp2);
+			if (strcmp(org,"BASM3-OPCODES")){
+				printAt("Malformed BASMdata.8xv",0,0);
 				ti_Close(fp2);
-				printAt("Assembled Successfuly!",0,4);
-				printAt("Output file:",0,5);
-				printAt(&outFile,12,5);
+			} else {
+				uint16_t *ptr = (uint16_t*)(org+32);
+				for (l=0;l<26;l++){
+					internal_define_pointers[l] = (define_entry_t*)(org + *ptr++);
+				}
+				ti_Close(fp2);
+				if (!outFile[0]){
+					error("No output program!","");
+				} else {
+					if (assemble(&inFile,&outFile)){
+						fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
+						fp = ti_OpenVar(&outFile,"w",TI_PPRGM_TYPE);
+						write(ti_GetDataPtr(fp2),ti_GetSize(fp2),fp);
+						ti_Close(fp);
+						ti_Close(fp2);
+						printAt("Assembled Successfuly!",0,4);
+						printAt("Output file:",0,5);
+						printAt(&outFile,12,5);
+					} else {
+						printAt("Aborted.",0,8);
+					}
+				}
 			}
 		} else {
-			abort:;
-			printAt("Aborted.",0,8);
+			printAt("Missing BASMdata.8xv",0,0);
 		}
 	} else {
 		printAt("Error: Could not open Ans",0,0);
@@ -213,12 +211,13 @@ int assemble(const char *inFile, char *outFile){
 			}
 			ErrorCode = 0;
 			if (*ptr==0x3F){
+				ptr++;
+			} else {
 				ptr=readTokens(&buf,min(511,max-ptr),ptr);
 				upperCaseStr(&buf);
 
 				if (c = *buf){
 					if (c>=0x41 && c<=0x5A){
-						label_t *lbl;
 						if (edata = getEmitData(&buf)){
 							write(edata+1,edata[0],fp);
 						} else if (edata = checkIncludes(&buf)) {
@@ -252,7 +251,7 @@ int assemble(const char *inFile, char *outFile){
 					if (ErrorWord){
 						error(ErrorCode,ErrorWord);
 					} else {
-						error(ErrorCode,trimWord(&buf));
+						error(ErrorCode,&buf);
 					}
 					break;
 				}
@@ -438,35 +437,29 @@ void defineGoto(const char *name,int val){ //write a new goto
 
 uint8_t *getEmitData(const char *name){ //opcodes and built-in words
 	uint8_t *data;
-	uint8_t *emit;
-	if (emit=checkInternal(name)){
-		return emit;
+	define_entry_t *ptr;
+	if (data=checkInternal(name,&ptr)){
+		return data;
 	} else if (data=processOpcodeLine(name)){
-		define_entry_t *ptr;
-		define_entry_t *lastdirect;
 		uint8_t buf[6];
-		ptr=internal_define_pointers[*data-0x41];
-		while ((ptr++)->bytes){
-			if (!strncmp(data,ptr->opcode,16)){
+		while (ptr->bytes){
+			if (!strncmp(data,&ptr->opcode,12)){
 				uint8_t c;
-				int i=2;
+				int i = ptr->bytes;
 				memcpy(&buf,&ptr->bytes,ptr->bytes+1);
-				emit=&buf;
-				if ((c=buf[1])==0xDD||c==0xFD||c==0xED||c==0xCB){
-					i++;
-					if (buf[2]==0xCB){
-						i++;
-					}
-				}
+				if (ptr->flags&F_LONG_ARG) i-=3;
+				else if (ptr->flags&(F_BYTE_ARG|F_OFFSET_ARG)) i--;
 				emitArgument(&buf[i],name,ptr->flags);
-				break;
+				free(data);
+				return &buf;
 			}
+			ptr++;
 		}
-		if (emit) return emit;
-		lastdirect = ptr;
-		
-		return emit;
-	} else return data;
+		ErrorWord = data;
+	} else {
+		ErrorCode = MemoryError;
+	}
+	return 0;
 }
 
 uint8_t *searchIncludeFile(const char *fname, const char *cname){

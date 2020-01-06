@@ -160,38 +160,38 @@ data = """
 9D SBC  A,L         SBC  A,IXL       RES  3,L         -                -
 9E SBC  A,(HL)      SBC  A,(IX+d)    RES  3,(HL)      RES 3,(IY+d)     -
 9F SBC  A,A         -                RES  3,A         -                -
-A0 AND  B           -                RES  4,B         -                LDI
-A1 AND  C           -                RES  4,C         -                CPI
-A2 AND  D           -                RES  4,D         -                INI
-A3 AND  E           -                RES  4,E         -                OTI
-A4 AND  H           AND  IXH         RES  4,H         -                OTI2
-A5 AND  L           AND  IXL         RES  4,L         -                -
-A6 AND  (HL)        AND  (IX+d)      RES  4,(HL)      RES 4,(IY+d)     -
-A7 AND  A           -                RES  4,A         -                -
-A8 XOR  B           -                RES  5,B         -                LDD
-A9 XOR  C           -                RES  5,C         -                CPD
-AA XOR  D           -                RES  5,D         -                IND
-AB XOR  E           -                RES  5,E         -                OTD
-AC XOR  H           XOR  IXH         RES  5,H         -                OTD2
-AD XOR  L           XOR  IXL         RES  5,L         -                -
-AE XOR  (HL)        XOR  (IX+d)      RES  5,(HL)      RES 5,(IY+d)     -
-AF XOR  A           -                RES  5,A         -                -
-B0 OR   B           -                RES  6,B         -                LDIR
-B1 OR   C           -                RES  6,C         -                CPIR
-B2 OR   D           -                RES  6,D         -                INIR
-B3 OR   E           -                RES  6,E         -                OTIR
-B4 OR   H           OR   IXH         RES  6,H         -                OTI2R
-B5 OR   L           OR   IXL         RES  6,L         -                -
-B6 OR   (HL)        OR   (IX+d)      RES  6,(HL)      RES 6,(IY+d)     -
-B7 OR   A           -                RES  6,A         -                -
-B8 CP   B           -                RES  7,B         -                LDDR
-B9 CP   C           -                RES  7,C         -                CPDR
-BA CP   D           -                RES  7,D         -                INDR
-BB CP   E           -                RES  7,E         -                OTDR
-BC CP   H           CP   IXH         RES  7,H         -                OTD2R
-BD CP   L           CP   IXL         RES  7,L         -                -
-BE CP   (HL)        CP   (IX+d)      RES  7,(HL)      RES 7,(IY+d)     -
-BF CP   A           -                RES  7,A         -                -
+A0 AND  A,B         -                RES  4,B         -                LDI
+A1 AND  A,C         -                RES  4,C         -                CPI
+A2 AND  A,D         -                RES  4,D         -                INI
+A3 AND  A,E         -                RES  4,E         -                OTI
+A4 AND  A,H         AND  A,IXH       RES  4,H         -                OTI2
+A5 AND  A,L         AND  A,IXL       RES  4,L         -                -
+A6 AND  A,(HL)      AND  A,(IX+d)    RES  4,(HL)      RES 4,(IY+d)     -
+A7 AND  A,A         -                RES  4,A         -                -
+A8 XOR  A,B         -                RES  5,B         -                LDD
+A9 XOR  A,C         -                RES  5,C         -                CPD
+AA XOR  A,D         -                RES  5,D         -                IND
+AB XOR  A,E         -                RES  5,E         -                OTD
+AC XOR  A,H         XOR  A,IXH       RES  5,H         -                OTD2
+AD XOR  A,L         XOR  A,IXL       RES  5,L         -                -
+AE XOR  A,(HL)      XOR  A,(IX+d)    RES  5,(HL)      RES 5,(IY+d)     -
+AF XOR  A,A         -                RES  5,A         -                -
+B0 OR   A,B         -                RES  6,B         -                LDIR
+B1 OR   A,C         -                RES  6,C         -                CPIR
+B2 OR   A,D         -                RES  6,D         -                INIR
+B3 OR   A,E         -                RES  6,E         -                OTIR
+B4 OR   A,H         OR   A,IXH       RES  6,H         -                OTI2R
+B5 OR   A,L         OR   A,IXL       RES  6,L         -                -
+B6 OR   A,(HL)      OR   A,(IX+d)    RES  6,(HL)      RES 6,(IY+d)     -
+B7 OR   A,A         -                RES  6,A         -                -
+B8 CP   A,B         -                RES  7,B         -                LDDR
+B9 CP   A,C         -                RES  7,C         -                CPDR
+BA CP   A,D         -                RES  7,D         -                INDR
+BB CP   A,E         -                RES  7,E         -                OTDR
+BC CP   A,H         CP   A,IXH       RES  7,H         -                OTD2R
+BD CP   A,L         CP   A,IXL       RES  7,L         -                -
+BE CP   A,(HL)      CP   A,(IX+d)    RES  7,(HL)      RES 7,(IY+d)     -
+BF CP   A,A         -                RES  7,A         -                -
 C0 RET  NZ          -                SET  0,B         -                -
 C1 POP  BC          -                SET  0,C         -                -
 C2 JP   NZ,&0000    -                SET  0,D         -                -
@@ -230,7 +230,7 @@ E2 JP   PO,&0000    -                SET  4,D         -                -
 E3 EX   (SP),HL     EX   (SP),IX     SET  4,E         -                -
 E4 CALL PO,&0000    -                SET  4,H         -                -
 E5 PUSH HL          PUSH IX          SET  4,L         -                -
-E6 AND  &00         -                SET  4,(HL)      SET 4,(IY+d)     -
+E6 AND  A,&00       -                SET  4,(HL)      SET 4,(IY+d)     -
 E7 RST  &20         -                SET  4,A         -                -
 E8 RET  PE          -                SET  5,B         -                -
 E9 JP   (HL)        JP   (IX)        SET  5,C         -                -
@@ -238,7 +238,7 @@ EA JP   PE,&0000    -                SET  5,D         -                -
 EB EX   DE,HL       -                SET  5,E         -                -
 EC CALL PE,&0000    -                SET  5,H         -                -
 ED **** ED ****     -                SET  5,L         -                -
-EE XOR  &00         -                SET  5,(HL)      SET 5,(IY+d)     -
+EE XOR  A,&00       -                SET  5,(HL)      SET 5,(IY+d)     -
 EF RST  &28         -                SET  5,A         -                -
 F0 RET  P           -                SET  6,B         -                -
 F1 POP  AF          -                SET  6,C         -                -
@@ -246,7 +246,7 @@ F2 JP   P,&0000     -                SET  6,D         -                -
 F3 DI               -                SET  6,E         -                -
 F4 CALL P,&0000     -                SET  6,H         -                -
 F5 PUSH AF          -                SET  6,L         -                -
-F6 OR   &00         -                SET  6,(HL)      SET 6,(IY+d)     -
+F6 OR   A,&00       -                SET  6,(HL)      SET 6,(IY+d)     -
 F7 RST  &30         -                SET  6,A         -                -
 F8 RET  M           -                SET  7,B         -                -
 F9 LD   SP,HL       LD   SP,IX       SET  7,C         -                -
@@ -254,13 +254,11 @@ FA JP   M,&0000     -                SET  7,D         -                -
 FB EI               -                SET  7,E         -                -
 FC CALL M,&0000     -                SET  7,H         -                -
 FD **** FD ****     -                SET  7,L         -                -
-FE CP   &00         -                SET  7,(HL)      SET 7,(IY+d)     -
+FE CP   A,&00       -                SET  7,(HL)      SET 7,(IY+d)     -
 FF RST  &38         -                SET  7,A         -                -
 """
 
 HEX="0123456789ABCDEF"
-N=0
-do=[]
 
 #define F_ARG_BYTE 7
 #define F_OFFSET_ARG 1<<3
@@ -272,7 +270,7 @@ LONG_ARG = 16
 BYTE_ARG = 32
 DIRECT = 128
 
-def sepTable(N,line,a,B=None,F=0):
+def sepTable(N,line,a,B=None,F=1):
 	if "&0000" in line:
 		a+=2
 		F|=LONG_ARG
@@ -280,7 +278,13 @@ def sepTable(N,line,a,B=None,F=0):
 		a+=1
 		F|=BYTE_ARG
 	elif "dist" in line:
+		a+=1
 		F|=DD_ARG
+	elif "+d" in line:
+		a+=1
+		F|=DD_ARG
+	else:
+		F|=DIRECT
 	if type(B) is list:
 		B.append(N)
 		while len(B)<4: B.append(0)
@@ -290,80 +294,73 @@ def sepTable(N,line,a,B=None,F=0):
 	else:
 		return [N,line,a,[B,N,0,0],F]
 
+N=0
+do=[]
 for line in data.splitlines():
 	if len(line) and N not in [0xDD,0xFD,0xCB,0xED]:
 		if line[20]!='-':
-			do.append(sepTable(N,line[20:36],2,0xDD,F=DD_ARG+2))
-			do.append(sepTable(N,line[20:36].replace("IX","IY"),2,0xFD,F=DD_ARG+2))
-		if line[3]!='-': do.append(sepTable(N,line[3:20],1))
-		if line[37]!='-': do.append(sepTable(N,line[37:54],2,0xCB))
+			do.append(sepTable(N,line[20:36],2,0xDD,F=2))
+			do.append(sepTable(N,line[20:36].replace("IX","IY"),2,0xFD,F=2))
+		if line[3]!='-':
+			do.append(sepTable(N,line[3:20],1))
+		if line[37]!='-':
+			do.append(sepTable(N,line[37:54],2,0xCB,F=1))
 		if line[54]!='-':
-			do.append(sepTable(N,line[54:71],3,[0xFD,0xCB,0x00]))
-			do.append(sepTable(N,line[54:71].replace("IY","IX"),3,[0xDD,0xCB,0x00]))
-		if line[71]!='-': do.append(sepTable(N,line[71:],2))
+			do.append(sepTable(N,line[54:71].replace("IY","IX"),3,[0xDD,0xCB,0x00],F=2))
+			do.append(sepTable(N,line[54:71],3,[0xFD,0xCB,0x00],F=2))
+		if line[71]!='-':
+			do.append(sepTable(N,line[71:],2,0xED,F=2))
 		N+=1
-do2=[]
-for i in range(len(do)):
-	if len(do2):
-		for j in range(len(do2)):
-			if do[i][1]<do2[j][1]:
-				do[i],do2[j] = do2[j],do[i]
-	do2.append(do[i])
 
-def checkDirect(words):
-	for word in words[1:]:
-		if "&" in word:
-			return False
-	return True
+do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
 
-do3=[]
-l=j=0
-di=True
-for i in range(len(do2)):
-	dt = do2[i]
-	words = dt[1].split()
-	if l!=words[0][0]:
-		l=words[0][0]
-		di=False
-		j=i
-	if di:
-		if checkDirect(words):
-			dt[4]|=DIRECT
-			do3.append(dt)
-		else:
-			do3.insert(j,dt)
+def checkDirect(word):
+	if "&00" in word:
+		return 0
+	elif "+d" in word:
+		return 0
+	elif "dist" in word:
+		return 0
 	else:
-		if checkDirect(words):
-			dt[4]|=DIRECT
-			do3.insert(j,dt)
-		else:
-			do3.append(dt)
+		return 1
 
+do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
+for dt in do:
+	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
 
-l='A'
-tbl=[32]
+tbl=[85]
 with open("opcode_list.bin","wb") as f:
 	dt=b"BASM3-OPCODES"
 	f.write(dt)
-	f.write(bytes([0]*(111-len(dt)))) #remaining header length, and jump table to be filled in later
-	for line in do3:
-		if line[1][0]!=l:
-			f.write(bytes([0]))
-			l = chr(ord(l)+1)
-			if line[1][0]==l:
-				tbl.append(f.tell()) #write the jump location for the next letter if there are opcodes for it
-			else: #otherwise skip the letters that don't have opcodes
-				while line[1][0]!=l:
-					tbl.append(110) #write the default location
-					l = chr(ord(l)+1)
-		while "  " in line[1]: line[1] = line[1].replace("  "," ")
-		line[1] = line[1].strip(" ")
-		f.write(bytes([line[2]]+line[3]+[line[4]]))
-		f.write(bytes(line[1],'UTF-8'))
-		if len(line)<16: f.write(bytes([0]*(16-len(line[1]))))
+	f.write(bytes([0]*(85-len(dt)))) #remaining header length, and jump table to be filled in later
+	for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+		letter = do2[l]
+		if len(letter[1])+len(letter[0]): tbl.append(f.tell())
+		else: tbl.append(84)
+		for line in letter[1]:
+			while "  " in line[1]: line[1] = line[1].replace("  "," ")
+			line[1] = line[1].strip(" ")
+			f.write(bytes([line[2]]+line[3]+[line[4]]))
+			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","@").replace("+d","@").replace("(","").replace(")","")
+			f.write(bytes(word,'UTF-8'))
+			if len(word)<12: f.write(bytes([0]*(12-len(word))))
+		for line in letter[0]:
+			while "  " in line[1]: line[1] = line[1].replace("  "," ")
+			line[1] = line[1].strip(" ")
+			f.write(bytes([line[2]]+line[3]+[line[4]]))
+			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","@").replace("+d","@")
+			f.write(bytes(word,'UTF-8'))
+			if len(word)<12: f.write(bytes([0]*(12-len(word))))
+
+
+	f.write(bytes([0]))
 
 	f.seek(32) #fill in jump table
 	for i in tbl:
-		f.write(bytes([i&0xFF,(i//0x100)&0xFF,i//0x10000]))
+		f.write(bytes([i&0xFF,(i//0x100)&0xFF]))
 	for i in range(len(tbl),26):
-		f.write(bytes([0x6E,0,0]))
+		f.write(bytes([84,0]))
+
+
+import os
+os.system("fasmg BASMdata.asm")

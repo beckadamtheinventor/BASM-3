@@ -14,25 +14,37 @@
 #define buffer_len 16
 uint8_t buffer[buffer_len];
 
+#define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10)
+
+
 char *processOpcodeLine(const char *name){
-	char c,c2;
+	unsigned char c;
 	char *rv;
 	char *ptr;
 	int len;
 	if (rv=ptr=malloc(len=strlen(name))){
 		memset(ptr,0,len);
-		while ((c=*name++)&&c!=' ');
+		while ((c=*name++)&&c!=' ') *ptr++=c;
+		*ptr++=c;
 		if (c){
 			while (c=*name++){ //loop over the line
-				if (isRegister(name-1)){ //check if it's a register. Hopefuly this can be optimized at some point.
+				if (isRegister(name-1)){ //check if it's a register.
 					*ptr++=c;
-					*ptr++=c2;
-					if ((c2=*(++name))=='H'||c2=='L'){ //ixh/l
-						name++;
-						*ptr++=c2;
+					if (c!='A'){
+						char c2;
+						*ptr++=c2=*name++;
+						if (c=='I'&&(c2=='X'||c2=='Y')){
+							if ((c=*name)=='H'||c=='L'){ //ixh/l, iyh/l
+								name++;
+								*ptr++=c;
+							} else { //ix/y
+								*ptr++='@'; //write the offset placeholder
+								while (isAlphaNumeric(*name++)); //skip until next non-value character.
+							}
+						}
 					}
-				} else if ((c-0x41)<26||((c-0x30)<10)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
-					while ((c=*name++)&&((c-0x41)<26||(c-0x30)<10)); //skip until it's not
+				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
+					while (isAlphaNumeric(*name++)); //skip until it's not
 					*ptr++='#'; //write the placeholder
 				} else {
 					*ptr++=c; //otherwise it's punctuation, and we probably need that.
@@ -51,7 +63,7 @@ int getArgFromLine(const char *line){
 	if (c){
 		char *data;
 		int len;
-		while (isRegister(line)||(*line-0x30)>=10||(*line-0x41)>=26) line++; //repeat until it's a value
+		while (isRegister(line)||isAlphaNumeric(*line)) line++; //repeat until it's a value
 		len=strlen(line)+1;
 		if (data=malloc(len)){
 			memcpy(data,line,len);
@@ -64,28 +76,21 @@ int getArgFromLine(const char *line){
 	return 0;
 }
 
-uint8_t *checkInternal(const char *line){
+uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 	define_entry_t *ptr;
-	uint8_t buf[6];
-	uint8_t *emit;
-	ptr=internal_define_pointers[*line-0x41];
-	while ((ptr++)->bytes&&(!ptr->flags&F_DIRECT_CMP)){
-		if (!strncmp(line,ptr->opcode,16)){
-			memcpy(&buf,&ptr->bytes,ptr->bytes+1);
-			emit=&buf;
-			break;
-		}
+	ptr=internal_define_pointers[(*line)-0x41];
+	while (ptr->bytes&&(ptr->flags&F_DIRECT_CMP)){
+		if (!strncmp(line,&ptr->opcode,12)) return &ptr->bytes;
+		ptr++;
 	}
-	if (emit) return emit;
+	*endptr = ptr;
 	return 0;
 }
 
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags){
 	if (!flags&F_DIRECT_CMP){
 		int num = getArgFromLine(line);
-		if (flags&F_OFFSET_ARG){
-			*buf = num;
-		} else if (flags&F_ARG_BYTE){
+		if (flags&(F_OFFSET_ARG|F_ARG_BYTE)){
 			*buf = num;
 		} else if (flags&F_LONG_ARG){
 			memcpy(buf,&num,3);
@@ -97,8 +102,8 @@ bool isRegister(const char *name){
 	char c,c2,c3;
 	c=name[0]; c2=name[1]; c3=name[2];
 	return (((c=='H' && c2=='L')||(c=='D'||c2=='E')||(c=='B'&&c2=='C')||(c=='A'&&c2=='F')||
-	(c=='S'&&c2=='P')||(c=='I'&&(c2=='X'||c2=='Y')))&&((c3-0x41)<26))
-	||(c=='A'&&((c2-0x41)<26));
+	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||(c=='I'&&(c2=='X'||c2=='Y')&&c3&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3))))
+	||(c=='A'&&(!isAlphaNumeric(c2)));
 }
 
 int getNumberWrapper(char **line){
