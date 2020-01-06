@@ -199,7 +199,7 @@ C3 JP   &0000       -                SET  0,E         -                -
 C4 CALL NZ,&0000    -                SET  0,H         -                -
 C5 PUSH BC          -                SET  0,L         -                -
 C6 ADD  A,&00       -                SET  0,(HL)      SET 0,(IY+d)     -
-C7 RST  &00         -                SET  0,A         -                LD I,HL
+C7 RST  &00         -                SET  0,A         -                LD  I,HL
 C8 RET  Z           -                SET  1,B         -                -
 C9 RET              -                SET  1,C         -                -
 CA JP   Z,&0000     -                SET  1,D         -                -
@@ -215,7 +215,7 @@ D3 OUT  (&00),A     -                SET  2,E         -                -
 D4 CALL NC,&0000    -                SET  2,H         -                -
 D5 PUSH DE          -                SET  2,L         -                -
 D6 SUB  A,&00       -                SET  2,(HL)      SET 2,(IY+d)     -
-D7 RST  &10         -                SET  2,A         -                LD HL,I
+D7 RST  &10         -                SET  2,A         -                LD  HL,I
 D8 RET  C           -                SET  3,B         -                -
 D9 EXX              -                SET  3,C         -                -
 DA JP   C,&0000     -                SET  3,D         -                -
@@ -313,6 +313,9 @@ for line in data.splitlines():
 		N+=1
 
 do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
+do.append([0xED,"LD HL,I",2,[0xED,0xD7,0,0],DIRECT])
+do.append([0xED,"LD I,HL",2,[0xED,0xC7,0,0],DIRECT])
+do.append([0xED,"TSTIO &00",3,[0xED,0x74,0,0],BYTE_ARG+2])
 
 def checkDirect(word):
 	if "&00" in word:
@@ -328,7 +331,7 @@ do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 for dt in do:
 	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
 
-tbl=[85]
+tbl=[]
 with open("opcode_list.bin","wb") as f:
 	dt=b"BASM3-OPCODES"
 	f.write(dt)
@@ -341,7 +344,7 @@ with open("opcode_list.bin","wb") as f:
 			while "  " in line[1]: line[1] = line[1].replace("  "," ")
 			line[1] = line[1].strip(" ")
 			f.write(bytes([line[2]]+line[3]+[line[4]]))
-			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","@").replace("+d","@").replace("(","").replace(")","")
+			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","@").replace("+d","@")
 			f.write(bytes(word,'UTF-8'))
 			if len(word)<12: f.write(bytes([0]*(12-len(word))))
 		for line in letter[0]:
@@ -351,6 +354,7 @@ with open("opcode_list.bin","wb") as f:
 			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","@").replace("+d","@")
 			f.write(bytes(word,'UTF-8'))
 			if len(word)<12: f.write(bytes([0]*(12-len(word))))
+		f.write(bytes([0]))
 
 
 	f.write(bytes([0]))

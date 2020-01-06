@@ -14,7 +14,7 @@
 #define buffer_len 16
 uint8_t buffer[buffer_len];
 
-#define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10)
+#define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10||c=='.')
 
 
 char *processOpcodeLine(const char *name){
@@ -59,19 +59,34 @@ char *processOpcodeLine(const char *name){
 
 int getArgFromLine(const char *line){
 	char c;
-	while ((c=*line++)&&c!=' ');
+	while ((c=*line++)&&c!=' '); //skip the first word
 	if (c){
 		char *data;
-		int len;
-		while (isRegister(line)||isAlphaNumeric(*line)) line++; //repeat until it's a value
+		int len,num;
+		bool neg;
+		if (*line=='('||isRegister(line)){
+			while ((*line++)!=',');
+		}
+		if (isRegister(line)){
+			line+=2;
+		}
+		neg = 0;
+		if ((c=*line)=='+'){
+			line++;
+		} else if (c=='-'){
+			line++;
+			neg = 1;
+		}
 		len=strlen(line)+1;
 		if (data=malloc(len)){
 			memcpy(data,line,len);
-			return getNumberWrapper(&data);
+			num = getNumberWrapper(&data);
+			if (neg) num = -num;
+			return num;
 		} else {
 			ErrorCode = MemoryError;
-			return 0;
 		}
+		return 0;
 	}
 	return 0;
 }
@@ -88,13 +103,14 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 }
 
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags){
-	if (!flags&F_DIRECT_CMP){
-		int num = getArgFromLine(line);
-		if (flags&(F_OFFSET_ARG|F_ARG_BYTE)){
-			*buf = num;
-		} else if (flags&F_LONG_ARG){
-			memcpy(buf,&num,3);
-		}
+	if (flags&(F_OFFSET_ARG|F_BYTE_ARG)){
+		CURRENT_BYTES = 1;
+		*buf = getArgFromLine(line);
+	} else if (flags&F_LONG_ARG){
+		int num;
+		CURRENT_BYTES = ADDR_BYTES;
+		num = getArgFromLine(line);
+		memcpy(buf,&num,ADDR_BYTES);
 	}
 }
 
@@ -102,7 +118,7 @@ bool isRegister(const char *name){
 	char c,c2,c3;
 	c=name[0]; c2=name[1]; c3=name[2];
 	return (((c=='H' && c2=='L')||(c=='D'||c2=='E')||(c=='B'&&c2=='C')||(c=='A'&&c2=='F')||
-	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||(c=='I'&&(c2=='X'||c2=='Y')&&c3&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3))))
+	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||(c=='I'&&(c2=='X'||c2=='Y')&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3))))
 	||(c=='A'&&(!isAlphaNumeric(c2)));
 }
 
@@ -124,7 +140,7 @@ int getNumber(char **line){
 	} else {
 		number = 0;
 	}
-	if (c<0x30||c>0x39){
+	if ((c<0x30||c>0x39)&&c!='.'){
 		uint8_t *data;
 		char *nbuf;
 		if (!(nbuf=getWord(line))){

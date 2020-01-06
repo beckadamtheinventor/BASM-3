@@ -255,8 +255,8 @@ int assemble(const char *inFile, char *outFile){
 					}
 					break;
 				}
+				assembling_line++;
 			}
-			assembling_line++;
 		}
 		if (!ErrorCode){
 			assembling_line = 0;
@@ -441,17 +441,19 @@ uint8_t *getEmitData(const char *name){ //opcodes and built-in words
 	if (data=checkInternal(name,&ptr)){
 		return data;
 	} else if (data=processOpcodeLine(name)){
-		uint8_t buf[6];
 		while (ptr->bytes){
 			if (!strncmp(data,&ptr->opcode,12)){
-				uint8_t c;
-				int i = ptr->bytes;
-				memcpy(&buf,&ptr->bytes,ptr->bytes+1);
-				if (ptr->flags&F_LONG_ARG) i-=3;
-				else if (ptr->flags&(F_BYTE_ARG|F_OFFSET_ARG)) i--;
-				emitArgument(&buf[i],name,ptr->flags);
-				free(data);
-				return &buf;
+				uint8_t *buf4;
+				if (buf4=malloc(8)){
+					int i = (ptr->flags&7) + 1;
+					memcpy(buf4,&ptr->bytes,ptr->bytes+1);
+					emitArgument(buf4+i,name,ptr->flags);
+					if (ptr->flags&F_LONG_ARG&&ADDR_BYTES!=2) buf4[0]++;
+					free(data);
+					return buf4;
+				} else {
+					ErrorCode = MemoryError;
+				}
 			}
 			ptr++;
 		}
