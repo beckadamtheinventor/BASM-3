@@ -12,11 +12,19 @@ typedef struct _define_entry_{
 	char opcode[12];
 }define_entry_t;
 
+#define SIZEOF_LABEL_T 13
+typedef struct _label_{
+	char *name;
+	int value,offset,org;
+	uint8_t bytes;
+}label_t;
+
 
 extern const char *MemoryError;
 
 extern uint8_t ADDR_BYTES;
 extern char *ErrorCode;
+extern char *ErrorWord;
 extern char *LAST_LINE;
 extern unsigned int ORIGIN;
 extern uint8_t CURRENT_BYTES;
@@ -28,12 +36,15 @@ extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
 extern void defineGoto(uint8_t *name,int val);
 extern int includeFile(const char *fname);
+extern label_t *findGoto(const char *name);
+extern int getLabelValue(label_t *lbl);
 
 char *processOpcodeLine(const char *name);
 int getArgFromLine(const char *line);
 uint8_t *checkInternal(const char *line,define_entry_t **endptr);
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags);
 bool isRegister(const char *name);
+bool isCondition(const char *name);
 
 int getNumberWrapper(char **line);
 int getNumber(char **line);

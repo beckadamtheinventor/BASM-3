@@ -43,8 +43,14 @@ char *processOpcodeLine(const char *name){
 							}
 						}
 					}
+				} else if (isCondition(name-1)){
+					*ptr++=c;
+					if ((c=*name)!=','){
+						*ptr++=c; name++;
+					}
 				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
-					while (isAlphaNumeric(*name++)); //skip until it's not
+					while (isAlphaNumeric(c)) {c=*name++;} //skip until it's not
+					name--;
 					*ptr++='#'; //write the placeholder
 				} else {
 					*ptr++=c; //otherwise it's punctuation, and we probably need that.
@@ -64,7 +70,7 @@ int getArgFromLine(const char *line){
 		char *data;
 		int len,num;
 		bool neg;
-		if (*line=='('||isRegister(line)){
+		if (*line=='('||isRegister(line)||isCondition(line)){
 			while ((*line++)!=',');
 		}
 		if (isRegister(line)){
@@ -122,6 +128,13 @@ bool isRegister(const char *name){
 	||(c=='A'&&(!isAlphaNumeric(c2)));
 }
 
+bool isCondition(const char *name){
+	char c,c2,c3;
+	c=name[0]; c2=name[1]; c3=name[2];
+	return (c=='Z'||c=='C'||c=='M')&&(!isAlphaNumeric(c2))||(c=='N'&&(c2=='Z'||c2=='C')&&(!isAlphaNumeric(c3)))||
+	(c=='P'&&(c2=='O'||c2=='E'||(!isAlphaNumeric(c2))));
+}
+
 int getNumberWrapper(char **line){
 	LAST_LINE = *line;
 	return getNumber(line);
@@ -143,13 +156,23 @@ int getNumber(char **line){
 	if ((c<0x30||c>0x39)&&c!='.'){
 		uint8_t *data;
 		char *nbuf;
+		label_t *gt;
 		if (!(nbuf=getWord(line))){
 			ErrorCode = MemoryError;
 		} else if (data=checkIncludes(nbuf)){
+			free(nbuf);
 			if (data[0]){
 				memcpy(&number,data+1,data[0]);
 				return number;
 			}
+		} else if (gt=findGoto(nbuf)){
+			if (gt->offset!=-1){
+				return getLabelValue(gt);
+			} else {
+				ErrorCode = "Label value is never defined";
+				ErrorWord = gt->name;
+			}
+			free(nbuf);
 		} else {
 			defineGoto(nbuf,0);
 			setGotoOffset(nbuf);
@@ -344,7 +367,7 @@ char *getWord(const char **line){
 	char *rv;
 	int amt;
 	char *ptr = *line;
-	while ((c=*(ptr++))>0x40&&c<=0x5A);
+	while (isAlphaNumeric(*ptr++));
 	if (rv=malloc((amt=(int)ptr-(int)*line))+1){
 		memcpy(rv,*line,amt);
 		rv[amt] = 0;
