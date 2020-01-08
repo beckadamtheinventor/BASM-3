@@ -4,6 +4,7 @@
 #define F_OFFSET_ARG 1<<3
 #define F_LONG_ARG 1<<4
 #define F_BYTE_ARG 1<<5
+#define F_JR_ARG 1<<6
 #define F_DIRECT_CMP 1<<7
 typedef struct _define_entry_{
 	uint8_t bytes;
@@ -47,6 +48,6 @@ void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes);
 bool isRegister(const char *name);
 bool isCondition(const char *name);
 
-int getNumber(char **line,int offset);
+int getNumber(char **line,int offset,bool jr);
 int digitValue(char c);
 char *getWord(const char **line);

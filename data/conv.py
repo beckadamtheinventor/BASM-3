@@ -99,7 +99,7 @@ data = """
 60 LD   H,B         LD   IXH,B       BIT  4,B         -                IN   H,(BC)
 61 LD   H,C         LD   IXH,C       BIT  4,C         -                OUT  (BC),H
 62 LD   H,D         LD   IXH,D       BIT  4,D         -                SBC  HL,HL
-63 LD   H,E         LD   IXH,E       BIT  4,E         -                LD   (&0000),HL
+63 LD   H,E         LD   IXH,E       BIT  4,E         -                -LD   (&0000),HL
 64 LD   H,H         LD   IXH,IXH     BIT  4,H         -                TST  A,&00
 65 LD   H,L         LD   IXH,IXL     BIT  4,L         -                PEA  IX+d
 66 LD   H,(HL)      LD   H,(IX+d)    BIT  4,(HL)      BIT 4,(IY+d)     PEA  IY+d
@@ -107,7 +107,7 @@ data = """
 68 LD   L,B         LD   IXL,B       BIT  5,B         -                IN   L,(BC)
 69 LD   L,C         LD   IXL,C       BIT  5,C         -                OUT  (BC),L
 6A LD   L,D         LD   IXL,D       BIT  5,D         -                ADC  HL,HL
-6B LD   L,E         LD   IXL,E       BIT  5,E         -                LD   HL,(&0000)
+6B LD   L,E         LD   IXL,E       BIT  5,E         -                -LD   HL,(&0000)
 6C LD   L,H         LD   IXL,IXH     BIT  5,H         -                MULT HL
 6D LD   L,L         LD   IXL,IXL     BIT  5,L         -                LD   MB,A
 6E LD   L,(HL)      LD   L,(IX+d)    BIT  5,(HL)      BIT 5,(IY+d)     LD   A,MB
@@ -115,7 +115,7 @@ data = """
 70 LD   (HL),B      LD   (IX+d),B    BIT  6,B         -                -
 71 LD   (HL),C      LD   (IX+d),C    BIT  6,C         -                -
 72 LD   (HL),D      LD   (IX+d),D    BIT  6,D         -                SBC  HL,SP
-73 LD   (HL),E      LD   (IX+d),E    BIT  6,E         -                LD   (&0000),SP
+73 LD   (HL),E      LD   (IX+d),E    BIT  6,E         -                -LD   (&0000),SP
 74 LD   (HL),H      LD   (IX+d),H    BIT  6,H         -                TSR  (&00)
 75 LD   (HL),L      LD   (IX+d),L    BIT  6,L         -                -
 76 HALT             -                BIT  6,(HL)      BIT 6,(IY+d)     SLP
@@ -123,7 +123,7 @@ data = """
 78 LD   A,B         -                BIT  7,B         -                IN   A,(BC)
 79 LD   A,C         -                BIT  7,C         -                OUT  (BC),A
 7A LD   A,D         -                BIT  7,D         -                ADC  HL,SP
-7B LD   A,E         -                BIT  7,E         -                LD   SP,(&0000)
+7B LD   A,E         -                BIT  7,E         -                -LD   SP,(&0000)
 7C LD   A,H         LD   A,IXH       BIT  7,H         -                MULT SP
 7D LD   A,L         LD   A,IXL       BIT  7,L         -                STMIX
 7E LD   A,(HL)      LD   A,(IX+d)    BIT  7,(HL)      BIT 7,(IY+d)     RSMIX
@@ -268,6 +268,7 @@ HEX="0123456789ABCDEF"
 DD_ARG = 8
 LONG_ARG = 16
 BYTE_ARG = 32
+JR_ARG = 64
 DIRECT = 128
 
 def sepTable(N,line,a,B=None,F=1):
@@ -279,7 +280,7 @@ def sepTable(N,line,a,B=None,F=1):
 		F|=BYTE_ARG
 	elif "dist" in line:
 		a+=1
-		F|=DD_ARG
+		F|=(DD_ARG|JR_ARG|BYTE_ARG)
 	elif "+d" in line:
 		a+=1
 		F|=DD_ARG
@@ -313,7 +314,7 @@ for line in data.splitlines():
 				do.append(sepTable(N,line[71:],2,0xED,F=2))
 		N+=1
 
-do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
+#do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
 do.append([0xED,"LD HL,I",2,[0xED,0xD7,0,0],DIRECT])
 do.append([0xED,"LD I,HL",2,[0xED,0xC7,0,0],DIRECT])
 do.append([0xED,"TSTIO &00",3,[0xED,0x74,0,0],BYTE_ARG+2])

@@ -233,38 +233,47 @@ int assemble(const char *inFile, char *outFile){
 					} else if (!strncmp(&buf,"DL ",3)){
 						writeArgs(&buf[3],3,fp);
 					} else {
+						uint8_t *line;
 						upperCaseStr(&buf);
 						if ((unsigned)((c=*buf)-0x41)<26){
-							if (edata = getEmitData(&buf)){
-								write(edata+1,edata[0],fp);
-							} else if (edata = checkIncludes(&buf)) {
-								write(edata+1,edata[0],fp);
+							if (!strncmp(&buf,"FORMAT ",7)){
+								line = &buf[7];
+								if (!strncmp(line,"ASM",3)){
+									ti_Write("\xEF\x7B",2,1,fp);
+									ORIGIN = 0xD1A87F;
+								}
 							} else {
-								int i=0;
-								while ((c=buf[++i])&&c!=':'); //skip until the ':'
-								if (c==':'){
-									uint8_t *ptr2;
-									int val,offset;
-									buf[i]=0;
-									ErrorWord = ptr2 = &buf[i+2];
-									offset = ORIGIN+ti_Tell(fp);
-									if ((c=buf[i+1])=='='){
-										int len2;
-										uint8_t *ptr3;
-										len2 = strlen(ptr2)+1;
-										if (ptr3=malloc(len2)){
-											memcpy(ptr3,ptr2,len2);
-											setLabelValue(&buf,ptr3);
-										}
-									} else if (c=='+'){
-										setLabelValueValue(&buf,offset+getNumber(&ptr2,offset));
-									} else if (c=='-'){
-										setLabelValueValue(&buf,offset-getNumber(&ptr2,offset));
-									} else {
-										setLabelValueValue(&buf,offset);
-									}
+								if (edata = getEmitData(&buf)){
+									write(edata+1,edata[0],fp);
+								} else if (edata = checkIncludes(&buf)) {
+									write(edata+1,edata[0],fp);
 								} else {
-									if (!ErrorCode) ErrorCode = "Undefined word";
+									int i=0;
+									while ((c=buf[++i])&&c!=':'); //skip until the ':'
+									if (c==':'){
+										uint8_t *ptr2;
+										int val,offset;
+										buf[i]=0;
+										ErrorWord = ptr2 = &buf[i+2];
+										offset = ORIGIN+ti_Tell(fp);
+										if ((c=buf[i+1])=='='){
+											int len2;
+											uint8_t *ptr3;
+											len2 = strlen(ptr2)+1;
+											if (ptr3=malloc(len2)){
+												memcpy(ptr3,ptr2,len2);
+												setLabelValue(&buf,ptr3);
+											}
+										} else if (c=='+'){
+											setLabelValueValue(&buf,offset+getNumber(&ptr2,offset,0));
+										} else if (c=='-'){
+											setLabelValueValue(&buf,offset-getNumber(&ptr2,offset,0));
+										} else {
+											setLabelValueValue(&buf,offset);
+										}
+									} else {
+										if (!ErrorCode) ErrorCode = "Undefined word";
+									}
 								}
 							}
 						} else {
@@ -305,6 +314,13 @@ int assemble(const char *inFile, char *outFile){
 							ErrorWord = gt->name;
 						} else {
 							val = getLabelValue(lbl);
+							if (gt->bytes&8){
+								val -= gt->org+gt->offset+(gt->bytes&7);
+								if ((unsigned)(val+0x80)>0xFF){
+									ErrorCode = "JR offset out of range";
+									ErrorWord = gt->name;
+								}
+							}
 							ti_Seek(gt->offset,SEEK_SET,fp);
 							ti_Write(&val,gt->bytes&3,1,fp);
 						}
@@ -361,7 +377,7 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			buf++;
 		} else {
 			buf--;
-			num = getNumber(&buf,0);
+			num = getNumber(&buf,0,0);
 			ti_Write(&num,len,1,fp);
 			buf++;
 		}
@@ -415,12 +431,14 @@ label_t *findGoto(const char *name){
 }
 
 int getLabelValue(label_t *lbl){ //get the value of a label
+	int val;
 	if (lbl->bytes&0x80){
 		void *ptr = (void*)lbl->value;
-		return getNumber(&ptr,0); //return the computed value
+		val=getNumber(&ptr,0,0); //return the computed value
 	} else {
-		return lbl->value;
+		val=lbl->value;
 	}
+	return val;
 }
 
 int getLabelOffset(const char *name){ //get the offset of a label

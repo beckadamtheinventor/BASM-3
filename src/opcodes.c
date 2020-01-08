@@ -65,11 +65,13 @@ char *processOpcodeLine(const char *name){
 
 int getArgFromLine(const char *line,int offset){
 	char c,cc;
+	bool jr=0;
+	if ((!strncmp(line,"JR ",3))||(!strncmp(line,"DJNZ ",5))) jr=1;
 	while ((c=*line++)&&c!=' '); //skip the first word
 	if (c){
 		char *data;
 		int len;
-		bool neg = 0;
+		bool neg=0;
 		cc=',';
 		while (c=*line){
 			if (isRegister(line)){
@@ -107,7 +109,7 @@ int getArgFromLine(const char *line,int offset){
 				int num;
 				memcpy(data,line,len);
 				data[len]=0;
-				num = getNumber(&data,offset);
+				num = getNumber(&data,offset,jr);
 				if (neg) num = -num;
 				return num;
 			} else {
@@ -134,15 +136,19 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes){
 	int i = flags&7;
+	CURRENT_BYTES=0;
+	if (flags&F_JR_ARG){
+		CURRENT_BYTES|=8;
+	}
 	if (flags&F_OFFSET_ARG){
-		CURRENT_BYTES=1;
-		buf[i+1] = getArgFromLine(line,i) - (ORIGIN+O_FILE_TELL+i);
+		CURRENT_BYTES|=1;
+		buf[i+1] = getArgFromLine(line,i) - (ORIGIN+O_FILE_TELL+bytes);
 	} else if (flags&F_BYTE_ARG){
-		CURRENT_BYTES=1;
+		CURRENT_BYTES|=1;
 		buf[i+1] = getArgFromLine(line,i);
 	} else if (flags&F_LONG_ARG){
 		int num;
-		CURRENT_BYTES=ADDR_BYTES;
+		CURRENT_BYTES|=ADDR_BYTES;
 		num = getArgFromLine(line,i);
 		memcpy(buf+i+1,&num,ADDR_BYTES);
 		if (ADDR_BYTES!=2) buf[0]++;
@@ -164,14 +170,14 @@ bool isCondition(const char *name){
 	(c=='P'&&(c2=='O'||c2=='E'||(!isAlphaNumeric(c2))));
 }
 
-int getNumber(char **line,int offset){
+int getNumber(char **line,int offset,bool jr){
 	unsigned char c,c2;
 	int number;
 	uint8_t base;
 	base=10;
 	if ((c=*(*line))=='('){
 		(*line)++;
-		number = getNumber(line,offset);
+		number = getNumber(line,offset,jr);
 		c=*(*line);
 	} else {
 		number = 0;
@@ -189,6 +195,7 @@ int getNumber(char **line,int offset){
 				return number;
 			}
 		} else {
+			if (jr) CURRENT_BYTES|=8;
 			defineGoto(nbuf,0,offset);
 		}
 		return 0;
@@ -209,46 +216,46 @@ int getNumber(char **line,int offset){
 				return 0;
 			}
 		} else if (c=='-') {
-			number -= getNumber(line,offset);
+			number -= getNumber(line,offset,jr);
 		} else if (c=='+') {
-			number += getNumber(line,offset);
+			number += getNumber(line,offset,jr);
 		} else if (c=='/') {
-			number /= getNumber(line,offset);
+			number /= getNumber(line,offset,jr);
 		} else if (c=='*') {
-			number *= getNumber(line,offset);
+			number *= getNumber(line,offset,jr);
 		} else if (c=='>') {
 			if ((c2=*(*line))=='>'){
 				(*line)++;
-				number >>= getNumber(line,offset);
+				number >>= getNumber(line,offset,jr);
 			} else if (c2=='='){
-				number = number >= getNumber(line,offset);
+				number = number >= getNumber(line,offset,jr);
 			} else {
-				number = number > getNumber(line,offset);
+				number = number > getNumber(line,offset,jr);
 			}
 		} else if (c=='<'){
 			if ((c2=*(*line))=='<'){
 				(*line)++;
-				number <<= getNumber(line,offset);
+				number <<= getNumber(line,offset,jr);
 			} else if (c2=='=') {
-				number = number <= getNumber(line,offset);
+				number = number <= getNumber(line,offset,jr);
 			} else {
-				number = number < getNumber(line,offset);
+				number = number < getNumber(line,offset,jr);
 			}
 		} else if (c=='!'){
 			if ((c2=*(*line))=='A'){
-				number = number && getNumber(line,offset);
+				number = number && getNumber(line,offset,jr);
 			} else if (c2=='O'){
-				number = number || getNumber(line,offset);
+				number = number || getNumber(line,offset,jr);
 			} else if (c2=='X'){
-				number = !(number && getNumber(line,offset));
+				number = !(number && getNumber(line,offset,jr));
 			} else if (c2=='+'){
-				number &= getNumber(line,offset);
+				number &= getNumber(line,offset,jr);
 			} else if (c2=='-') {
-				number |= getNumber(line,offset);
+				number |= getNumber(line,offset,jr);
 			} else if (c2=='*') {
-				number ^= getNumber(line,offset);
+				number ^= getNumber(line,offset,jr);
 			} else if (c2=='M') {
-				number %= getNumber(line,offset);
+				number %= getNumber(line,offset,jr);
 			} else {
 				ErrorCode = "Syntax Error: Expected logical operator";
 				return 0;
