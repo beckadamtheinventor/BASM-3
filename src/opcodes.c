@@ -30,7 +30,7 @@ char *processOpcodeLine(const char *name){
 			while (c=*name++){ //loop over the line
 				if (isRegister(name-1)){ //check if it's a register.
 					*ptr++=c;
-					if (c!='A'){
+					if (c!='A'||*name=='F'){
 						char c2;
 						*ptr++=c2=*name++;
 						if (c=='I'&&(c2=='X'||c2=='Y')){
@@ -49,9 +49,19 @@ char *processOpcodeLine(const char *name){
 						*ptr++=c; name++;
 					}
 				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
+					loopexpression:;
 					while (isAlphaNumeric(c)) {c=*name++;} //skip until it's not
-					name--;
-					*ptr++='#'; //write the placeholder
+					if (c=='!'){
+					} else if (c=='-'||c=='+'||c=='*'||c=='/'||c=='='){
+						name--;
+					} else if (c=='<'||c=='>'){
+						if (*name!='=') name--;
+					} else {
+						name--;
+						*ptr++='#'; //write the placeholder
+						continue;
+					}
+					goto loopexpression;
 				} else {
 					*ptr++=c; //otherwise it's punctuation, and we probably need that.
 				}
@@ -160,7 +170,7 @@ bool isRegister(const char *name){
 	c=name[0]; c2=name[1]; c3=name[2];
 	return (((c=='H' && c2=='L')||(c=='D'||c2=='E')||(c=='B'&&c2=='C')||(c=='A'&&c2=='F')||
 	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||(c=='I'&&(c2=='X'||c2=='Y')&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3))))
-	||(c=='A'&&(!isAlphaNumeric(c2)));
+	||(((unsigned)(c-0x41)<5||c=='H'||c=='L')&&(!isAlphaNumeric(c2)));
 }
 
 bool isCondition(const char *name){
@@ -223,6 +233,13 @@ int getNumber(char **line,int offset,bool jr){
 			number /= getNumber(line,offset,jr);
 		} else if (c=='*') {
 			number *= getNumber(line,offset,jr);
+		} else if (c=='='){
+			if (*(*line)++=='='){
+				number = (number==getNumber(line,offset,jr));
+			} else {
+				ErrorCode = "Invalid operator '='";
+				return 0;
+			}
 		} else if (c=='>') {
 			if ((c2=*(*line))=='>'){
 				(*line)++;
