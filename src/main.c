@@ -51,7 +51,7 @@ int DATA_SP = 0;
 int WORD_SP;
 char *ErrorCode = 0;
 char *ErrorWord = 0;
-int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL;
+unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL;
 
 ti_var_t gfp;
 
@@ -71,7 +71,7 @@ int getLabelOffset(const char *name);
 label_t *findLabel(const char *name);
 label_t *findGoto(const char *name);
 void defineLabel(uint8_t *name,int val);
-void defineGoto(uint8_t *name,int val);
+void defineGoto(const char *name,int val,int offset);
 void UpdateWordStack(void);
 int assemble(const char *inFile, char *outFile);
 uint8_t *getEmitData(const char *name);
@@ -158,29 +158,39 @@ int assemble(const char *inFile, char *outFile){
 	I_FILE_ORG = (int)(ptr = ti_GetDataPtr(fp));
 	max = ptr+ti_GetSize(fp);
 	ti_Close(fp);
+	ptr=readTokens(outFile,8,ptr,max);
+
 
 
 	printAt("Prescanning...",0,9);
 	gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
 	while (ptr<max){
+		uint8_t c;
 		ErrorCode = 0;
 		if (os_GetCSC()==sk_Clear){
 			ErrorCode = "UserBreakError";
 			break;
-		} else if (*((uint8_t*)ptr)==0x3F){
+		} else if ((c=*((uint8_t*)ptr))==tEnter){
 			ptr++;
 		} else {
 			uint8_t c;
 			int i=0;
 			ptr=readTokens(&buf,511,ptr,max);
 			upperCaseStr(&buf);
-			i = strlen(&buf)-1;
-			if (buf[i]==':'&&((!(c=buf[i+1]))||c=='=')){
+			while ((c=buf[++i])&&c!=':'); //skip until ':'
+			if (c==':'){
 				uint8_t *data;
-				if (data = malloc(i+1)){
-					memcpy(data,&buf,i);
-					data[i]=0;
+				int len;
+				ErrorWord=0;
+				len = strlen(&buf);
+				buf[i++]=0;
+				if (data = malloc(len)){
+					int val;
+					memcpy(data,&buf,len);
 					defineLabel(data,0);
+					if (data[i]=='='){
+						setLabelValue(data,ErrorWord=data+i+1);
+					}
 				} else {
 					ErrorCode = MemoryError;
 					break;
@@ -189,14 +199,16 @@ int assemble(const char *inFile, char *outFile){
 		}
 	}
 	if (!ErrorCode){
+		uint8_t c;
 		UpdateWordStack();
 		printAt("Assembling...  ",0,9);
 
 		fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
+		ti_Resize(0xFFE8,fp);
 		ptr = (uint8_t*)I_FILE_ORG;
-		assembling_line = 1;
+		while ((c=*ptr++)!=tEnter&&c);
+		assembling_line = 2;
 		while (ptr<max) {
-			uint8_t c;
 			uint8_t *edata;
 			O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-(O_FILE_TELL=ti_Tell(fp));
 
@@ -206,7 +218,7 @@ int assemble(const char *inFile, char *outFile){
 				break;
 			}
 			ErrorCode = 0;
-			if (*ptr==0x3F){
+			if (*ptr==tEnter){
 				ptr++;
 			} else {
 				ptr=readTokens(&buf,511,ptr,max);
@@ -228,20 +240,28 @@ int assemble(const char *inFile, char *outFile){
 							} else if (edata = checkIncludes(&buf)) {
 								write(edata+1,edata[0],fp);
 							} else {
-								int i = 1;
-								while ((c=buf[i++])&&c!=':'); i--; //skip until the ':'
-								if (buf[i]){
+								int i=0;
+								while ((c=buf[++i])&&c!=':'); //skip until the ':'
+								if (c==':'){
 									uint8_t *ptr2;
-									buf[i++]=0;
-									ErrorWord = ptr2 = &buf[i];
-									if ((c=buf[i])=='='){
-										setLabelValue(&buf,buf+i);
+									int val,offset;
+									buf[i]=0;
+									ErrorWord = ptr2 = &buf[i+2];
+									offset = ORIGIN+ti_Tell(fp);
+									if ((c=buf[i+1])=='='){
+										int len2;
+										uint8_t *ptr3;
+										len2 = strlen(ptr2)+1;
+										if (ptr3=malloc(len2)){
+											memcpy(ptr3,ptr2,len2);
+											setLabelValue(&buf,ptr3);
+										}
 									} else if (c=='+'){
-										setLabelValueValue(&buf,ORIGIN+ti_Tell(fp)+getNumberWrapper(&ptr2));
+										setLabelValueValue(&buf,offset+getNumber(&ptr2,offset));
 									} else if (c=='-'){
-										setLabelValueValue(&buf,ORIGIN+ti_Tell(fp)-getNumberWrapper(&ptr2));
+										setLabelValueValue(&buf,offset-getNumber(&ptr2,offset));
 									} else {
-										setLabelValueValue(&buf,ORIGIN+ti_Tell(fp));
+										setLabelValueValue(&buf,offset);
 									}
 								} else {
 									if (!ErrorCode) ErrorCode = "Undefined word";
@@ -268,37 +288,32 @@ int assemble(const char *inFile, char *outFile){
 			}
 		}
 		if (!ErrorCode){
+			ti_Resize(ti_Tell(fp),fp);
 			assembling_line = 0;
 			printAt("Filling addresses...     ",0,9);
 			i = WORD_SP;
-			do {
-				uint8_t sbuf[26];
+			while (i--) {
 				label_t *lbl;
 				label_t *gt = &WORD_STACK[i];
 				if (gt->bytes&3){ //set address for this item.
 					uint8_t c;
 					uint8_t *ptr;
 					int val;
-					lbl = findLabel(gt->name);
-					val = getLabelValue(lbl);
-					ptr = (uint8_t*)gt->offset+1;
-					if (!gt->bytes&4){
-						if (!((c=ptr[O_FILE_ORG])&0xC7) && c&0x38){
-							val = gt->offset - val;
-						} else if (c==0xED||c==0xDD||c==0xFD||c==0xCB){
-							if (*ptr++==0xCB) ptr++;
+					if (lbl=findLabel(gt->name)){
+						if (lbl->bytes&0x40){
+							ErrorCode = "Label is never given value";
+							ErrorWord = gt->name;
+						} else {
+							val = getLabelValue(lbl);
+							ti_Seek(gt->offset,SEEK_SET,fp);
+							ti_Write(&val,gt->bytes&3,1,fp);
 						}
+					} else {
+						ErrorCode = "Undefined Label";
+						ErrorWord = gt->name;
 					}
-					ti_Seek((int)ptr,SEEK_SET,fp);
-					ti_Write(&val,gt->bytes&3,1,fp);
-					sprintf(&sbuf,"value: %d",val);
-					printAt(gt->name,0,6);
-					printAt(&sbuf,0,7);
-					pause();
-					printAt("                          ",0,6);
-					printAt("                          ",0,7);
 				}
-			} while (i--);
+			}
 			if (ErrorCode){
 				error(ErrorCode,ErrorWord);
 			}
@@ -346,7 +361,7 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			buf++;
 		} else {
 			buf--;
-			num = getNumberWrapper(&buf);
+			num = getNumber(&buf,0);
 			ti_Write(&num,len,1,fp);
 			buf++;
 		}
@@ -357,7 +372,7 @@ void setGotoOffset(const char *name){ //set the output offset of an address that
 	label_t *data;
 	if (data=findGoto(name)){
 		data->bytes=CURRENT_BYTES; //number of bytes needing to be filled
-		data->offset = ORIGIN + O_FILE_TELL; //offset in output file
+		data->offset=O_FILE_TELL; //offset in output file
 	}
 }
 
@@ -366,7 +381,7 @@ void setGotoOffset(const char *name){ //set the output offset of an address that
 	if (data=findGoto(name)){
 		int val;
 		data->bytes=CURRENT_BYTES; //number of bytes needing to be filled
-		val=getNumberWrapper(&value_ptr);
+		val=getNumber(&value_ptr);
 		data->value = val; //value of address
 	}
 }*/
@@ -374,39 +389,38 @@ void setGotoOffset(const char *name){ //set the output offset of an address that
 label_t *findLabel(const char *name){
 	label_t *data;
 	int i = WORD_SP;
-	do {
+	while (i--) {
 		data = &WORD_STACK[i];
-		if (!data->bytes&3){
+		if (!(data->bytes&3)){
 			if (!strcmp(data->name,name)){
 				return data;
 			}
 		}
-	} while (i--);
+	}
 	return 0;
 }
 
 label_t *findGoto(const char *name){
 	label_t *data;
 	int i = WORD_SP;
-	do {
+	while (i--) {
 		data = &WORD_STACK[i];
 		if (data->bytes&3){
 			if (!strcmp(data->name,name)){
 				return data;
 			}
 		}
-	} while (i--);
+	}
 	return 0;
 }
 
 int getLabelValue(label_t *lbl){ //get the value of a label
 	if (lbl->bytes&0x80){
 		void *ptr = (void*)lbl->value;
-		return getNumberWrapper(&ptr); //return the computed value
+		return getNumber(&ptr,0); //return the computed value
 	} else {
-		return lbl->value; //return the value
+		return lbl->value;
 	}
-	return 0;
 }
 
 int getLabelOffset(const char *name){ //get the offset of a label
@@ -424,22 +438,19 @@ void setLabelOffset(const uint8_t *name,int value){ //set a label's offset from 
 	}
 }
 
-void setLabelValue(const uint8_t *name,const uint8_t *value_ptr){
+void setLabelValue(const char *name,const uint8_t *value_ptr){
 	label_t *data;
-	printAt(name,0,5);
-	pause();
-	printAt("                          ",0,5);
 	if (data=findLabel(name)){
-		memcpy(&data->value,&value_ptr,3); //set the pointer to it's value's expression
-		data->bytes|=0x80;
+		data->value = (int)value_ptr; //set the pointer to it's value's expression
+		data->bytes = (data->bytes&0x3F)|0x80;
 	}
 }
 
-void setLabelValueValue(const uint8_t *name,int value){
+void setLabelValueValue(const char *name,int value){
 	label_t *data;
 	if (data=findLabel(name)){
-		memcpy(&data->value,&value,3);
-		data->bytes&=0x7F;
+		data->value = value;
+		data->bytes &= 0x3F;
 	}
 }
 
@@ -449,17 +460,18 @@ void defineLabel(const char *name,int val){ //write a new label
 	ti_Write(&val,3,1,gfp); //write the value of the label.
 	ti_Write("\xFF\xFF\xFF",3,1,gfp); //write 0xFFFFFF for the file offset.
 	ti_Write(&ORIGIN,3,1,gfp); //write the label's origin pointer
-	ti_PutC(0,gfp); //write 0 to denote that this is a label.
+	ti_PutC(0x40,gfp); //write 0x40 to denote that this is a label and is in need of a value.
 	UpdateWordStack();
 }
 
-void defineGoto(const char *name,int val){ //write a new goto
+void defineGoto(const char *name,int val,int offset){ //write a new goto
+	offset+=O_FILE_TELL;
 	ti_Seek(0,SEEK_END,gfp);
 	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label to goto.
 	ti_Write(&val,3,1,gfp); //write the value of the label to goto.
-	ti_Write(&O_FILE_TELL,3,1,gfp); //write file offset in output file
+	ti_Write(&offset,3,1,gfp); //write file offset in output file
 	ti_Write(&ORIGIN,3,1,gfp); //write the goto's origin pointer
-	ti_PutC(0x7F,gfp); //and 0x7F for the length. (to be modified later)
+	ti_PutC(CURRENT_BYTES,gfp); //can be modified later.
 	UpdateWordStack();
 }
 
@@ -473,10 +485,8 @@ uint8_t *getEmitData(const char *name){ //opcodes and built-in words
 			if (!strncmp(data,&ptr->opcode,12)){
 				uint8_t *buf4;
 				if (buf4=malloc(8)){
-					int i = (ptr->flags&7) + 1;
-					memcpy(buf4,&ptr->bytes,ptr->bytes+1);
-					emitArgument(buf4+i,name,ptr->flags);
-					if (ptr->flags&F_LONG_ARG&&ADDR_BYTES!=2) buf4[0]++;
+					memcpy(buf4,&ptr->bytes,(ptr->bytes&7)+1);
+					emitArgument(buf4,name,ptr->flags,ptr->bytes);
 					free(data);
 					return buf4;
 				} else {

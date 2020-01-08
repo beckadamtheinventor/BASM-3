@@ -330,6 +330,7 @@ def checkDirect(word):
 
 do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 for dt in do:
+	dt[1] = dt[1].replace("&0000","#").replace("&00","#").replace("dist","#").replace("+d","@")
 	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
 
 tbl=[]
@@ -345,14 +346,14 @@ with open("opcode_list.bin","wb") as f:
 			while "  " in line[1]: line[1] = line[1].replace("  "," ")
 			line[1] = line[1].strip(" ")
 			f.write(bytes([line[2]]+line[3]+[line[4]]))
-			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","#").replace("+d","@")
+			word = line[1]
 			f.write(bytes(word,'UTF-8'))
 			if len(word)<12: f.write(bytes([0]*(12-len(word))))
 		for line in letter[0]:
 			while "  " in line[1]: line[1] = line[1].replace("  "," ")
 			line[1] = line[1].strip(" ")
 			f.write(bytes([line[2]]+line[3]+[line[4]]))
-			word = line[1].replace("&0000","#").replace("&00","#").replace("dist","#").replace("+d","@")
+			word = line[1]
 			f.write(bytes(word,'UTF-8'))
 			if len(word)<12: f.write(bytes([0]*(12-len(word))))
 		f.write(bytes([0]))

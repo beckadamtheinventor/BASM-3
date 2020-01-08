@@ -27,6 +27,7 @@ extern char *ErrorCode;
 extern char *ErrorWord;
 extern char *LAST_LINE;
 extern unsigned int ORIGIN;
+extern unsigned int O_FILE_TELL;
 extern uint8_t CURRENT_BYTES;
 extern ti_var_t gfp;
 
@@ -34,24 +35,18 @@ extern define_entry_t *internal_define_pointers[26];
 
 extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
-extern void defineGoto(uint8_t *name,int val);
+extern void defineGoto(const char *name,int val,int offset);
 extern int includeFile(const char *fname);
 extern label_t *findGoto(const char *name);
 extern int getLabelValue(label_t *lbl);
 
 char *processOpcodeLine(const char *name);
-int getArgFromLine(const char *line);
+int getArgFromLine(const char *line,int offset);
 uint8_t *checkInternal(const char *line,define_entry_t **endptr);
-void emitArgument(uint8_t *buf,const char *line,uint8_t flags);
+void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes);
 bool isRegister(const char *name);
 bool isCondition(const char *name);
 
-int getNumberWrapper(char **line);
-int getNumber(char **line);
-uint8_t getCondition(const char **line);
+int getNumber(char **line,int offset);
 int digitValue(char c);
-uint8_t checkRRArg(const char *args,uint8_t base);
-uint8_t checkRArg(const char *args,uint8_t base);
-uint8_t getRArgN(const char *args);
-
 char *getWord(const char **line);
