@@ -1,7 +1,3 @@
 bin/
 obj/
-*.8xp
-*.8xv
-src/gfx/*.c
-src/gfx/*.h
-src/gfx/convpng.log
+tests/
