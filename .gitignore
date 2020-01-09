@@ -1,5 +1,5 @@
 bin/
 obj/
 tests/
-data/*.8xv
-data/*.bin
+**/*.8xv
+**/*.bin
