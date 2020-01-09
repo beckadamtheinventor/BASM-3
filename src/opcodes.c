@@ -14,7 +14,7 @@
 #define buffer_len 16
 uint8_t buffer[buffer_len];
 
-#define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10||c=='.')
+#define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.')
 
 
 char *processOpcodeLine(const char *name){
@@ -174,7 +174,6 @@ int getNumber(char **line,int offset,bool jr){
 					if (data[0]){
 						memcpy(&number,data+1,data[0]);
 					}
-					return number;
 				} else {
 					if (gt=findLabel(nbuf)){
 						free(nbuf);
@@ -256,7 +255,7 @@ int getNumber(char **line,int offset,bool jr){
 			} else if (c2=='M') {
 				number %= getNumber(line,offset,jr);
 			} else {
-				ErrorCode = "Syntax Error: Expected logical operator";
+				ErrorCode = "Expected logical operator";
 				return 0;
 			}
 		} else if (c==')'||c==','){
@@ -281,7 +280,7 @@ int digitValue(char c){
 	uint8_t a;
 	if ((a = c-0x30)<10){
 		return a;
-	} else if ((a = c-0x41)<26){
+	} else if ((a = c-0x41)<27){
 		return a+10;
 	}
 	return 0xFF;

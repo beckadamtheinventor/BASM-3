@@ -25,9 +25,10 @@
 #define max(a,b) a>b?a:b
 #define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10||c=='.')
 
-#define SIZEOF_INCLUDE_ENTRY 11
+#define SIZEOF_INCLUDE_ENTRY 14
 typedef struct __include_entry_t {
 	char fname[8];
+	char *namespace;
 	void *next;
 } include_entry_t;
 
@@ -42,7 +43,7 @@ extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
 uint8_t CURRENT_BYTES;
 uint8_t *O_FILE_PTR;
-define_entry_t *internal_define_pointers[26];
+define_entry_t *internal_define_pointers[27];
 char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0xD1A881; //usermem
@@ -58,7 +59,7 @@ unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE;
 ti_var_t gfp;
 
 include_entry_t first_include;
-include_entry_t *last_include;
+include_entry_t *last_include = &first_include;
 
 
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
@@ -78,7 +79,7 @@ int assemble(const char *inFile, char *outFile);
 uint8_t *getEmitData(const char *name);
 uint8_t *checkIncludes(const char *name);
 uint8_t *searchIncludeFile(const char *fname, const char *cname);
-int includeFile(const char *fname);
+bool includeFile(const char *fname,const char *namespace);
 
 void error(const char *str,const char *word);
 void print(const char *str);
@@ -114,7 +115,7 @@ void main(void){
 				ti_Close(fp2);
 			} else {
 				uint16_t *ptr = (uint16_t*)(org+32);
-				for (l=0;l<26;l++){
+				for (l=0;l<27;l++){
 					internal_define_pointers[l] = (define_entry_t*)(org + *ptr++);
 				}
 				ti_Close(fp2);
@@ -244,7 +245,7 @@ int assemble(const char *inFile, char *outFile){
 					} else {
 						uint8_t *line;
 						upperCaseStr(&buf[2]);
-						if ((unsigned)((c=*buf)-0x41)<26||c==tTheta){
+						if ((unsigned)((c=*buf)-0x41)<27){
 							if (!strncmp(&buf,"FORMAT ",7)){
 								line = &buf[7];
 								do {
@@ -288,12 +289,23 @@ int assemble(const char *inFile, char *outFile){
 									line++;
 									do c=line[len++]; while (c&&c!='"'); len--;
 									if (len){
+										char *incname;
+										char *nsname;
 										if (len>8){
 											ErrorCode = "Appvar name too long";
 										}
 										line[len]=0;
-										includeFile(line);
+										incname = line;
 										line+=len+1;
+										len=0;
+										do c=line[len++]; while (c); len--;
+										if (nsname = malloc(len+1)){
+											if (len) memcpy(nsname,line,len);
+											nsname[len]=0;
+											includeFile(incname,nsname);
+										} else {
+											ErrorCode = MemoryError;
+										}
 									} else {
 										ErrorCode = "Null appvar name";
 									}
@@ -304,8 +316,6 @@ int assemble(const char *inFile, char *outFile){
 								parseLabel(&buf[4],fp);
 								ErrorCode = 0;
 							} else if (edata = getEmitData(&buf)){
-								ti_Write(edata+1,edata[0],1,fp);
-							} else if (edata = checkIncludes(&buf)) {
 								ti_Write(edata+1,edata[0],1,fp);
 							} else {
 								parseLabel(&buf,fp);
@@ -361,7 +371,7 @@ int assemble(const char *inFile, char *outFile){
 							ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
 							ti_Write(&val,gt->bytes&3,1,fp); //write in the data
 						}
-					} else { //try to set its value
+					} else { //try to set the label's value
 						if (gt->bytes&0x80){
 							int val = getLabelValue(gt);
 							if (ErrorCode==(char*)1){
@@ -460,7 +470,7 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			buf--;
 			num = getNumber(&buf,0,0);
 			ti_Write(&num,len,1,fp);
-			buf++;
+			buf--;
 		}
 	}
 }
@@ -552,7 +562,7 @@ void defineGoto(void *val,int offset){ //write a new 'goto'. Basically a place t
 	ti_Write(&val,3,1,gfp); //write the value of the label to goto.
 	ti_Write(&offset,3,1,gfp); //write file offset in output file
 	ti_Write(&ORIGIN,3,1,gfp); //write the goto's origin pointer
-	ti_PutC(CURRENT_BYTES|0x80,gfp); //CURRENT_BYTES -> length of data, 0x80 -> value is pointer.
+	ti_PutC(CURRENT_BYTES|0x80,gfp); //CURRENT_BYTES -> length of data & flags, 0x80 -> pointer to value's expression
 	UpdateWordStack();
 }
 
@@ -601,25 +611,21 @@ uint8_t *getEmitData(const char *name){ //opcodes and built-in words
 uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	ti_var_t fp;
 	uint8_t *ptr;
-	unsigned int i,elen;
+	unsigned int elen;
+	uint8_t i;
 	if (fp = ti_Open(fname,"r")){
 		ptr = ti_GetDataPtr(fp);
 		ti_Close(fp);
 		if (strcmp(ptr,"BASM3.0 INC")) return 0;
 	} else return 0;
-	elen = (uint8_t)ptr[32];
-	if (cname[0]==tTheta){
-		i = 27;
-	} else {
-		i = cname[0]-0x41;
-	}
-	ptr+=((uint16_t)ptr[i*2+33]);
+	elen = ptr[32];
+	i = cname[0]-0x41;
+	ptr += *((uint16_t*)(ptr+i*2+33));
 	while (*ptr){
 		if (!strncmp(cname,ptr,elen)){
-			return ptr+strnlen(ptr,elen);
-		} else {
-			ptr+=strnlen(ptr,elen)+4;
+			return ptr+strnlen(ptr,elen)+1;
 		}
+		ptr+=strnlen(ptr,elen)+5;
 	}
 	return 0;
 }
@@ -631,19 +637,28 @@ void UpdateWordStack(void){
 }
 
 uint8_t *checkIncludes(const char *name){
-	include_entry_t *ent;
-
-	ent = &first_include;
+	include_entry_t *ent = &first_include;
 	do {
 		uint8_t *rv;
-		if (rv = searchIncludeFile(ent->fname,name)){
-			return rv;
+		bool i = 0;
+		if (!*ent->namespace){
+			i = 1;
+		} else {
+			int len = strlen(ent->namespace);
+			if (!strncmp(name,ent->namespace,len)){
+				i = 1;
+			}
+		}
+		if (i){
+			if (rv = searchIncludeFile(ent->fname,name+strlen(ent->namespace))){
+				return rv;
+			}
 		}
 	} while (ent = ent->next);
 	return 0;
 }
 
-int includeFile(const char *fname){
+bool includeFile(const char *fname,const char *namespace){
 	ti_var_t fp;
 	include_entry_t *ent;
 	if (fp=ti_Open(fname,"r")){
@@ -658,13 +673,12 @@ int includeFile(const char *fname){
 		return 0;
 	}
 
-	memcpy(ent->fname,fname,8);
-	if (last_include){
-		last_include->next = ent;
-	}
+	memcpy(last_include->fname,fname,8);
+	last_include->namespace = namespace;
+	last_include->next = ent;
 	last_include = ent;
 	ent->next = 0;
-	return (int)ent;
+	return 1;
 }
 
 void error(const char *str,const char *word){

@@ -32,12 +32,11 @@ extern unsigned int O_FILE_TELL;
 extern uint8_t CURRENT_BYTES;
 extern ti_var_t gfp;
 
-extern define_entry_t *internal_define_pointers[26];
+extern define_entry_t *internal_define_pointers[27];
 
 extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
 extern void defineGoto(void *val,int offset);
-extern int includeFile(const char *fname);
 extern label_t *findLabel(const char *name);
 extern label_t *findGoto(const char *name);
 extern int getLabelValue(label_t *lbl);

@@ -2,7 +2,7 @@
 Beck's Assembler v3 - "On-calc" Assembler for the TI84+CE family of graphing calculators.
 
 # TODO
-- make include files
+- make more include files
 - wring out bugs as they appear
 
 # How-to
@@ -20,8 +20,7 @@ Following such a colon can come one of four things.
 
 Example program:
 ```
-BIN
-FORMAT ASM
+FORMAT ASM "BIN"
 JP MAIN
 DB 2
 DB "BASM-3.0A Example program",0
@@ -29,11 +28,11 @@ DB "BASM-3.0A Example program",0
 //Lbl is an alternative label define. Useful for jumping around the program using Cesium's in-editor Label Goto feature
 Lbl MAIN:
 CALL RUNINDICOFF
-CALL CLEARVRAM
+CALL BOOT[CLEARVRAM
 XOR A,A
 LD (CURROW),A
 LD (CURCOL),A
-CALL PUTS
+CALL BOOT[PUTS
 CALL GETKEY
 CALL RUNINDICON
 JP DRAWSTATUSBAR
@@ -42,14 +41,8 @@ CALL GETCSC
 OR A,A
 JR Z,GETKEY
 RET
-DRAWSTATUSBAR:=.X21A3C
-CLEARVRAM:=.X374
-PUTS:=.X378
-GETCSC:=.X2014C
-CURROW:=.XD00595
-CURCOL:=.XD00596
-RUNINDICON:=.X20844
-RUNINDICOFF:=.X20848
 KCLEAR:=15
 ```
+
+Note: the '[' in the examples should be Theta in your program.
 
