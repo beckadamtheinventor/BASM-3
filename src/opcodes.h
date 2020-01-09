@@ -36,8 +36,9 @@ extern define_entry_t *internal_define_pointers[26];
 
 extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
-extern void defineGoto(const char *name,int val,int offset);
+extern void defineGoto(const char *name,void *val,int offset);
 extern int includeFile(const char *fname);
+extern label_t *findLabel(const char *name);
 extern label_t *findGoto(const char *name);
 extern int getLabelValue(label_t *lbl);
 

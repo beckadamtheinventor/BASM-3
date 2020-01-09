@@ -49,16 +49,16 @@ char *processOpcodeLine(const char *name){
 						*ptr++=c; name++;
 					}
 				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
+					*ptr++='#'; //write the placeholder
 					loopexpression:;
-					while (isAlphaNumeric(c)) {c=*name++;} //skip until it's not
+					do c=*name++; while (isAlphaNumeric(c)); //skip until it's not
 					if (c=='!'){
+						name++;
 					} else if (c=='-'||c=='+'||c=='*'||c=='/'||c=='='){
-						name--;
 					} else if (c=='<'||c=='>'){
-						if (*name!='=') name--;
+						if (*name=='=') name++;
 					} else {
 						name--;
-						*ptr++='#'; //write the placeholder
 						continue;
 					}
 					goto loopexpression;
@@ -76,13 +76,13 @@ char *processOpcodeLine(const char *name){
 int getArgFromLine(const char *line,int offset){
 	char c,cc;
 	bool jr=0;
+	cc=',';
 	if ((!strncmp(line,"JR ",3))||(!strncmp(line,"DJNZ ",5))) jr=1;
 	while ((c=*line++)&&c!=' '); //skip the first word
 	if (c){
 		char *data;
 		int len;
 		bool neg=0;
-		cc=',';
 		while (c=*line){
 			if (isRegister(line)){
 				if ((c=*line++)!='A'){
@@ -108,14 +108,13 @@ int getArgFromLine(const char *line,int offset){
 			} else if (isAlphaNumeric(c)){
 				break;
 			} else {
-				if (c=='(') cc=')';
-				line++;
+				if (*line++=='(') cc=')';
 			}
 		}
 		if (*line){
 			len=0;
-			while ((c=line[++len])&&c!=cc);
-			if (data=malloc(len)){
+			do c=line[++len]; while (c&&c!=cc);
+			if (data=malloc(len+1)){
 				int num;
 				memcpy(data,line,len);
 				data[len]=0;
@@ -146,7 +145,7 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 
 void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes){
 	int i = flags&7;
-	CURRENT_BYTES=0;
+	CURRENT_BYTES = 0;
 	if (flags&F_JR_ARG){
 		CURRENT_BYTES|=8;
 	}
@@ -185,31 +184,44 @@ int getNumber(char **line,int offset,bool jr){
 	int number;
 	uint8_t base;
 	base=10;
+	ErrorCode=0;
 	if ((c=*(*line))=='('){
 		(*line)++;
 		number = getNumber(line,offset,jr);
-		c=*(*line);
 	} else {
 		number = 0;
-	}
-	if ((c<0x30||c>0x39)&&c!='.'){
-		uint8_t *data;
-		char *nbuf;
-		label_t *gt;
-		if (!(nbuf=getWord(line))){
-			ErrorCode = MemoryError;
-		} else if (data=checkIncludes(nbuf)){
-			free(nbuf);
-			if (data[0]){
-				memcpy(&number,data+1,data[0]);
-				return number;
+		if ((c<0x30||c>0x39)&&c!='.'){
+			uint8_t *data;
+			char *oldline;
+			char *nbuf;
+			label_t *gt;
+			oldline = *line;
+			if (nbuf=getWord(line)){
+				if (data=checkIncludes(nbuf)){
+					free(nbuf);
+					if (data[0]){
+						memcpy(&number,data+1,data[0]);
+					}
+					return number;
+				} else {
+					label_t *lbl;
+					int len=strlen(oldline)+1;
+					if (data=malloc(len)){
+						memcpy(data,oldline,len);
+						if (jr) CURRENT_BYTES|=8;
+						defineGoto(nbuf,data,offset);
+					} else {
+						ErrorCode = MemoryError;
+						return 0;						
+					}
+					if (lbl=findLabel(nbuf)){
+						number = getLabelValue(lbl);
+					}
+				}
 			}
-		} else {
-			if (jr) CURRENT_BYTES|=8;
-			defineGoto(nbuf,0,offset);
 		}
-		return 0;
 	}
+	if (ErrorCode) return 0;
 	while (c=*(*line)++){
 		if (c=='.') {
 			c=*(*line)++;
@@ -277,15 +289,16 @@ int getNumber(char **line,int offset,bool jr){
 				ErrorCode = "Syntax Error: Expected logical operator";
 				return 0;
 			}
-		} else if (c==')' || c==',' || c==' '){
+		} else if (c==')'||c==','){
 			(*line)++;
 			return number;
-		} else {
+		} else if (c!=' '){
 			uint8_t a = digitValue(c);
 			if (a<base){
 				number = number*base + a;
 			} else {
 				ErrorCode = "Number Format Error";
+				ErrorWord = (*line)-1;
 				return 0;
 			}
 		}
@@ -309,12 +322,15 @@ char *getWord(const char **line){
 	char *rv;
 	int amt;
 	char *ptr = *line;
-	while (isAlphaNumeric(*ptr++));
-	if (rv=malloc((amt=(int)ptr-(int)*line))){
+	do c=*ptr++; while (isAlphaNumeric(c)); ptr--;
+	if (rv=malloc((amt=(int)(ptr-*line))+1)){
 		memcpy(rv,*line,amt);
 		rv[amt] = 0;
 	} else {
-		ErrorCode = MemoryError;
+		if (amt){
+			ErrorCode = MemoryError;
+		}
+		return 0;
 	}
 	*line = ptr;
 	return rv;

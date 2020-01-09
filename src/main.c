@@ -71,7 +71,7 @@ int getLabelOffset(const char *name);
 label_t *findLabel(const char *name);
 label_t *findGoto(const char *name);
 void defineLabel(uint8_t *name,int val);
-void defineGoto(const char *name,int val,int offset);
+void defineGoto(const char *name,void *val,int offset);
 void UpdateWordStack(void);
 int assemble(const char *inFile, char *outFile);
 uint8_t *getEmitData(const char *name);
@@ -313,7 +313,7 @@ int assemble(const char *inFile, char *outFile){
 							ErrorCode = "Label is never given value";
 							ErrorWord = gt->name;
 						} else {
-							val = getLabelValue(lbl);
+							val = getLabelValue(gt);
 							if (gt->bytes&8){
 								val -= gt->org+gt->offset+(gt->bytes&7);
 								if ((unsigned)(val+0x80)>0xFF){
@@ -482,14 +482,14 @@ void defineLabel(const char *name,int val){ //write a new label
 	UpdateWordStack();
 }
 
-void defineGoto(const char *name,int val,int offset){ //write a new goto
+void defineGoto(const char *name,void *val,int offset){ //write a new goto
 	offset+=O_FILE_TELL;
 	ti_Seek(0,SEEK_END,gfp);
 	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label to goto.
 	ti_Write(&val,3,1,gfp); //write the value of the label to goto.
 	ti_Write(&offset,3,1,gfp); //write file offset in output file
 	ti_Write(&ORIGIN,3,1,gfp); //write the goto's origin pointer
-	ti_PutC(CURRENT_BYTES,gfp); //can be modified later.
+	ti_PutC(CURRENT_BYTES|0x80,gfp); //can be modified later.
 	UpdateWordStack();
 }
 

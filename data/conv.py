@@ -286,6 +286,7 @@ def sepTable(N,line,a,B=None,F=1):
 		F|=DD_ARG
 	else:
 		F|=DIRECT
+	line=line.replace("&0000","#").replace("&00","#").replace("dist","#").replace("+d","@")
 	if type(B) is list:
 		B.append(N)
 		while len(B)<4: B.append(0)
@@ -331,7 +332,6 @@ def checkDirect(word):
 
 do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 for dt in do:
-	dt[1] = dt[1].replace("&0000","#").replace("&00","#").replace("dist","#").replace("+d","@")
 	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
 
 tbl=[]
