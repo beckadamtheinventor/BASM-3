@@ -19,7 +19,7 @@ Following such a colon can come one of four things.
 
 
 Example program:
-`
+```
 BIN
 FORMAT ASM
 JP MAIN
@@ -51,5 +51,5 @@ CURCOL:=.XD00596
 RUNINDICON:=.X20844
 RUNINDICOFF:=.X20848
 KCLEAR:=15
-`
+```
 
