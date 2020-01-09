@@ -28,11 +28,11 @@ DB "BASM-3.0A Example program",0
 //Lbl is an alternative label define. Useful for jumping around the program using Cesium's in-editor Label Goto feature
 Lbl MAIN:
 CALL RUNINDICOFF
-CALL BOOT[CLEARVRAM
+CALL BOOTθCLEARVRAM
 XOR A,A
 LD (CURROW),A
 LD (CURCOL),A
-CALL BOOT[PUTS
+CALL BOOTθPUTS
 CALL GETKEY
 CALL RUNINDICON
 JP DRAWSTATUSBAR
@@ -43,6 +43,4 @@ JR Z,GETKEY
 RET
 KCLEAR:=15
 ```
-
-Note: the '[' in the examples should be Theta in your program.
 
