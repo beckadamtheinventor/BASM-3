@@ -73,16 +73,13 @@ char *processOpcodeLine(const char *name){
 	}
 }
 
-int getArgFromLine(const char *line,int offset){
+char *getArgFromLine(const char *line){
 	char c,cc;
-	bool jr=0;
 	cc=',';
-	if ((!strncmp(line,"JR ",3))||(!strncmp(line,"DJNZ ",5))) jr=1;
 	while ((c=*line++)&&c!=' '); //skip the first word
 	if (c){
 		char *data;
 		int len;
-		bool neg=0;
 		while (c=*line){
 			if (isRegister(line)){
 				if ((c=*line++)!='A'){
@@ -91,10 +88,7 @@ int getArgFromLine(const char *line,int offset){
 						if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
 							line++;
 						} else {
-							if (c=='-'){
-								neg = 1;
-								line++;
-							} else if (c=='+'){
+							if (c=='+'){
 								line++;
 							}
 							break;
@@ -108,7 +102,8 @@ int getArgFromLine(const char *line,int offset){
 			} else if (isAlphaNumeric(c)){
 				break;
 			} else {
-				if (*line++=='(') cc=')';
+				if (c=='(') cc=')';
+				line++;
 			}
 		}
 		if (*line){
@@ -118,9 +113,7 @@ int getArgFromLine(const char *line,int offset){
 				int num;
 				memcpy(data,line,len);
 				data[len]=0;
-				num = getNumber(&data,offset,jr);
-				if (neg) num = -num;
-				return num;
+				return data;
 			} else {
 				ErrorCode = MemoryError;
 			}
@@ -141,27 +134,6 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 	}
 	*endptr = ptr;
 	return 0;
-}
-
-void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes){
-	int i = flags&7;
-	CURRENT_BYTES = 0;
-	if (flags&F_JR_ARG){
-		CURRENT_BYTES|=8;
-	}
-	if (flags&F_OFFSET_ARG){
-		CURRENT_BYTES|=1;
-		buf[i+1] = getArgFromLine(line,i) - (ORIGIN+O_FILE_TELL+bytes);
-	} else if (flags&F_BYTE_ARG){
-		CURRENT_BYTES|=1;
-		buf[i+1] = getArgFromLine(line,i);
-	} else if (flags&F_LONG_ARG){
-		int num;
-		CURRENT_BYTES|=ADDR_BYTES;
-		num = getArgFromLine(line,i);
-		memcpy(buf+i+1,&num,ADDR_BYTES);
-		if (ADDR_BYTES!=2) buf[0]++;
-	}
 }
 
 bool isRegister(const char *name){
@@ -204,20 +176,18 @@ int getNumber(char **line,int offset,bool jr){
 					}
 					return number;
 				} else {
-					label_t *lbl;
-					int len=strlen(oldline)+1;
-					if (data=malloc(len)){
-						memcpy(data,oldline,len);
-						if (jr) CURRENT_BYTES|=8;
-						defineGoto(nbuf,data,offset);
-					} else {
-						ErrorCode = MemoryError;
-						return 0;						
-					}
-					if (lbl=findLabel(nbuf)){
-						number = getLabelValue(lbl);
+					if (gt=findLabel(nbuf)){
+						free(nbuf);
+						if (gt->bytes&0x40){
+							ErrorCode = (char*)1;
+						} else {
+							if (jr) CURRENT_BYTES|=8;
+							number = getLabelValue(gt);
+						}
 					}
 				}
+			} else {
+				ErrorCode = MemoryError;
 			}
 		}
 	}

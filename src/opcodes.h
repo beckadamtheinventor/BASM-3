@@ -36,16 +36,15 @@ extern define_entry_t *internal_define_pointers[26];
 
 extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
-extern void defineGoto(const char *name,void *val,int offset);
+extern void defineGoto(void *val,int offset);
 extern int includeFile(const char *fname);
 extern label_t *findLabel(const char *name);
 extern label_t *findGoto(const char *name);
 extern int getLabelValue(label_t *lbl);
 
 char *processOpcodeLine(const char *name);
-int getArgFromLine(const char *line,int offset);
+char *getArgFromLine(const char *line);
 uint8_t *checkInternal(const char *line,define_entry_t **endptr);
-void emitArgument(uint8_t *buf,const char *line,uint8_t flags,uint8_t bytes);
 bool isRegister(const char *name);
 bool isCondition(const char *name);
 
