@@ -22,6 +22,7 @@ char *processOpcodeLine(const char *name){
 	char *rv;
 	char *ptr;
 	int len;
+	bool w=1;
 	if (rv=ptr=malloc(len=strlen(name)+1)){
 		memset(ptr,0,len);
 		while ((c=*name++)&&c!=' ') *ptr++=c;
@@ -37,9 +38,25 @@ char *processOpcodeLine(const char *name){
 							if ((c=*name)=='H'||c=='L'){ //ixh/l, iyh/l
 								name++;
 								*ptr++=c;
+							} else if (c==')'){
+								*ptr++='@';
+								*ptr++=c; name++;
+								w=0;
 							} else { //ix/y
-								*ptr++='@'; //write the offset placeholder
-								while (isAlphaNumeric(*name++)); //skip until next non-value character.
+								testAfterIXY:;
+								if ((c=*name)==','){ //are we an offset or not?
+									*ptr++=c; name++;
+								} else if (c==' '){
+									name++;
+									goto testAfterIXY;
+								} else if (c=='+'||c=='-'||c==')'||(!c)) {
+									if (w) *ptr++='@'; //write the offset placeholder
+									while ((c=*name++)!=')'&&c); //skip until ')' or EOL.
+									if (c){
+										*ptr++=c;
+									}
+									w=0;
+								}
 							}
 						}
 					}
@@ -49,7 +66,7 @@ char *processOpcodeLine(const char *name){
 						*ptr++=c; name++;
 					}
 				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
-					*ptr++='#'; //write the placeholder
+					if (w) *ptr++='#'; //write the placeholder
 					loopexpression:;
 					do c=*name++; while (isAlphaNumeric(c)); //skip until it's not
 					if (c=='!'){
@@ -59,10 +76,11 @@ char *processOpcodeLine(const char *name){
 						if (*name=='=') name++;
 					} else {
 						name--;
+						w=0;
 						continue;
 					}
 					goto loopexpression;
-				} else {
+				} else if (c!=' ') { //if it's not whitespace
 					*ptr++=c; //otherwise it's punctuation, and we probably need that.
 				}
 			}
@@ -80,30 +98,34 @@ char *getArgFromLine(const char *line){
 	if (c){
 		char *data;
 		int len;
-		while (c=*line){
-			if (isRegister(line)){
-				if ((c=*line++)!='A'){
-					char c2 = *line++;
-					if (c=='I'&&(c2=='X'||c2=='Y')){
-						if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
-							line++;
-						} else {
-							if (c=='+'){
+		if ((unsigned)(c-0x30)>=10){
+			while (c=*line){
+				if (isRegister(line)){
+					if ((c=*line++)!='A'){
+						char c2 = *line++;
+						if (c=='I'&&(c2=='X'||c2=='Y')){
+							if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
 								line++;
+							} else {
+								if (c=='+'||c=='-'||c==')'||(!c)){
+									if (c=='+'){
+										line++;
+									}
+									break;
+								}
 							}
-							break;
 						}
 					}
-				}
-			} else if (isCondition(line)){
-				if ((c=*line)!=','){
+				} else if (isCondition(line)){
+					if ((c=*line)!=','){
+						line++;
+					}
+				} else if (isAlphaNumeric(c)){
+					break;
+				} else {
+					if (c=='(') cc=')';
 					line++;
 				}
-			} else if (isAlphaNumeric(c)){
-				break;
-			} else {
-				if (c=='(') cc=')';
-				line++;
 			}
 		}
 		if (*line){
@@ -125,14 +147,31 @@ char *getArgFromLine(const char *line){
 
 uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 	define_entry_t *ptr;
+	int len;
+	char *line2;
+	char c;
+	len=strlen(line);
 	ptr=internal_define_pointers[(*line)-0x41];
-	while (ptr->bytes&&(ptr->flags&F_DIRECT_CMP)){
-		if (!strncmp(line,&ptr->opcode,12)) {
-			return &ptr->bytes;
+	if (line2=malloc(len+1)){
+		char *line3 = line2;
+		while ((c=*line++)&&c!=' ') *line2++=c;
+		*line2++=c;
+		while (c=*line++){
+			if (c!=' ') *line2++=c;
 		}
-		ptr++;
+		*line2++=0;
+		while (ptr->bytes&&(ptr->flags&F_DIRECT_CMP)){
+			if (!strncmp(line3,&ptr->opcode,12)) {
+				free(line3);
+				return &ptr->bytes;
+			}
+			ptr++;
+		}
+		free(line3);
+		*endptr = ptr;
+	} else {
+		ErrorCode = MemoryError;
 	}
-	*endptr = ptr;
 	return 0;
 }
 
@@ -140,7 +179,8 @@ bool isRegister(const char *name){
 	char c,c2,c3;
 	c=name[0]; c2=name[1]; c3=name[2];
 	return (((c=='H' && c2=='L')||(c=='D'||c2=='E')||(c=='B'&&c2=='C')||(c=='A'&&c2=='F')||
-	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||(c=='I'&&(c2=='X'||c2=='Y')&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3))))
+	(c=='S'&&c2=='P'))&&(!isAlphaNumeric(c3)))||
+	(c=='I'&&(c2=='X'||c2=='Y'||(!isAlphaNumeric(c))&&(c3=='H'||c3=='L'||(!isAlphaNumeric(c3)))))
 	||(((unsigned)(c-0x41)<5||c=='H'||c=='L')&&(!isAlphaNumeric(c2)));
 }
 
@@ -231,7 +271,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 	char c;
 	uint8_t a;
 	number = 0;
-	if (((c=**line)<0x30||c>0x39)&&c!='.'){
+	if (((c=**line)<0x30||c>0x39)&&c!='.'&&c){
 		uint8_t *data;
 		char *oldline;
 		char *nbuf;
@@ -271,6 +311,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 				ErrorCode = "Invalid Number Base";
 				return 0;
 			}
+		} else if (c==' '){
 		} else if ((a=digitValue(c))<(*base)) {
 			number = number*(*base) + a;
 		} else {
@@ -282,9 +323,9 @@ int getNumberNoMath(char **line,uint8_t *base){
 
 int digitValue(char c){
 	uint8_t a;
-	if ((a = c-0x30)<10){
+	if ((a=c-0x30)<10){
 		return a;
-	} else if ((a = c-0x41)<27){
+	} else if ((a=c-0x41)<27){
 		return a+10;
 	}
 	return 0xFF;

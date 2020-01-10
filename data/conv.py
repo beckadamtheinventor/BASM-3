@@ -233,7 +233,7 @@ E5 PUSH HL          PUSH IX          SET  4,L         -                -
 E6 AND  A,&00       -                SET  4,(HL)      SET 4,(IY+d)     -
 E7 RST  &20         -                SET  4,A         -                -
 E8 RET  PE          -                SET  5,B         -                -
-E9 JP   (HL)        JP   (IX)        SET  5,C         -                -
+E9 JP   (HL)        JP   (IX@)       SET  5,C         -                -
 EA JP   PE,&0000    -                SET  5,D         -                -
 EB EX   DE,HL       -                SET  5,E         -                -
 EC CALL PE,&0000    -                SET  5,H         -                -
@@ -249,7 +249,7 @@ F5 PUSH AF          -                SET  6,L         -                -
 F6 OR   A,&00       -                SET  6,(HL)      SET 6,(IY+d)     -
 F7 RST  &30         -                SET  6,A         -                -
 F8 RET  M           -                SET  7,B         -                -
-F9 LD   SP,HL       LD   SP,IX       SET  7,C         -                -
+F9 LD   SP,HL       LD   SP,IX@      SET  7,C         -                -
 FA JP   M,&0000     -                SET  7,D         -                -
 FB EI               -                SET  7,E         -                -
 FC CALL M,&0000     -                SET  7,H         -                -
