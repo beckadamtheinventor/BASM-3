@@ -336,52 +336,36 @@ int assemble(const char *inFile, char *outFile){
 			}
 		}
 		if (!ErrorCode){
-			int remainingTries;
-			bool remainingUndefs = 0;
-			remainingTries = WORD_SP+1;
 			//ti_Resize(ti_Tell(fp),fp); //this bugs out for some reason
 			O_FILE_SIZE = ti_Tell(fp);
 			assembling_line = 0;
 			printAt("Filling addresses...     ",0,9);
-			do {
-				label_t *gt;
-				i = WORD_SP;
-				remainingUndefs=0;
-				while (i--) {
-					gt = &WORD_STACK[i];
-					if (gt->bytes&7){ //set address for this item.
-						int val = getLabelValue(gt); //get the goto's value
-						if (ErrorCode==UndefinedLabelError){ //there was an undefined label in the expression
-							ErrorCode=0;
-							remainingUndefs=1;
-						} else {
-							if (gt->bytes&8){
-								val -= gt->org+gt->offset+(gt->bytes&7); //calculate the JR offset byte
-								if ((unsigned)(val+0x80)>0xFF){
-									ErrorCode = "JR offset out of range";
-									ErrorWord = (char*)gt->value;
-									break;
-								}
+			i = WORD_SP;
+			while (i--) {
+				label_t *gt = &WORD_STACK[i];
+				if (gt->bytes&7){ //set address for this item.
+					int val = getLabelValue(gt); //get the goto's value
+					if (!ErrorCode) {
+						if (gt->bytes&8){
+							val -= gt->org+gt->offset+(gt->bytes&7); //calculate the JR offset byte
+							if ((unsigned)(val+0x80)>0xFF){
+								ErrorCode = "JR offset out of range";
+								ErrorWord = (char*)gt->value;
+								break;
 							}
-							ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
-							ti_Write(&val,gt->bytes&3,1,fp); //write in the data
 						}
-					} else { //try to set the label's value
-						int val = getLabelValue(gt);
-						if (gt->bytes&0x80){ //pointer to value
-							if (ErrorCode==UndefinedLabelError){ //there's still undefined labels in the expression
-								ErrorCode=0;
-								remainingUndefs = 1;
-							} else {
-								gt->bytes&=0x3F;
-								gt->value = val;
-							}
+						ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
+						ti_Write(&val,gt->bytes&3,1,fp); //write in the data
+					}
+				} else { //try to set the label's value
+					int val = getLabelValue(gt);
+					if (gt->bytes&0x80){ //pointer to value
+						if (!ErrorCode){
+							gt->bytes&=0x3F;
+							gt->value = val;
 						}
 					}
 				}
-			} while (remainingUndefs&&(remainingTries--)&&(!ErrorCode));
-			if (!(remainingTries||ErrorCode)) {
-				ErrorCode = "Can't get label value";
 			}
 		}
 		ti_Close(fp);
