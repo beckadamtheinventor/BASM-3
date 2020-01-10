@@ -316,23 +316,15 @@ for line in data.splitlines():
 		N+=1
 
 #do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
-do.append([0xED,"LD HL,I",2,[0xED,0xD7,0,0],DIRECT])
-do.append([0xED,"LD I,HL",2,[0xED,0xC7,0,0],DIRECT])
+#do.append([0xED,"LD HL,I",2,[0xED,0xD7,0,0],DIRECT])
+#do.append([0xED,"LD I,HL",2,[0xED,0xC7,0,0],DIRECT])
 do.append([0xED,"TSTIO &00",3,[0xED,0x74,0,0],BYTE_ARG+2])
-
-def checkDirect(word):
-	if "&00" in word:
-		return 0
-	elif "+d" in word:
-		return 0
-	elif "dist" in word:
-		return 0
-	else:
-		return 1
 
 do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 for dt in do:
-	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
+	if dt[4]&DIRECT: i=1
+	else: i=0
+	do2[dt[1][0]][i].append(dt)
 
 import os
 
@@ -352,11 +344,11 @@ tbl=[]
 with open("obj/opcode_list.bin","wb") as f:
 	dt=b"BASM3-OPCODES"
 	f.write(dt)
-	f.write(bytes([0]*(85-len(dt)))) #remaining header length, and jump table to be filled in later
+	f.write(bytes([0]*(87-len(dt)))) #remaining header length, and jump table to be filled in later
 	for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
 		letter = do2[l]
 		if len(letter[1])+len(letter[0]): tbl.append(f.tell())
-		else: tbl.append(84)
+		else: tbl.append(86)
 		for line in letter[1]:
 			while "  " in line[1]: line[1] = line[1].replace("  "," ")
 			line[1] = line[1].strip(" ")
@@ -373,14 +365,11 @@ with open("obj/opcode_list.bin","wb") as f:
 			if len(word)<12: f.write(bytes([0]*(12-len(word))))
 		f.write(bytes([0]))
 
-
-	f.write(bytes([0]))
-
 	f.seek(32) #fill in jump table
 	for i in tbl:
 		f.write(bytes([i&0xFF,(i//0x100)&0xFF]))
-	for i in range(len(tbl),26):
-		f.write(bytes([84,0]))
+	for i in range(len(tbl),27):
+		f.write(bytes([86,0]))
 
 
 with open("obj/BASMdata.asm","w") as f:
