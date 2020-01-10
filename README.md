@@ -2,7 +2,6 @@
 Beck's Assembler v3 - "On-calc" Assembler for the TI84+CE family of graphing calculators.
 
 # TODO
-- make more include files
 - wring out bugs as they appear
 
 # How-to
@@ -13,12 +12,12 @@ Type in the program name you wish to compile from the TI-OS homescreen like so:
 Press enter, then run BASM.
 If all is successful, you should see the output binary.
 
-The opcodes of BASM are the same as with fasmg. (eZ80 version)
+The opcodes of BASM are the same as when using "eZ80.inc" with fasmg.
 Local labels are not yet implemented. Stay tuned.
 Numbers and expressions are standard, but do not follow order of operations.
 If a label name starts at the beginning of a line and the name ends with a colon (':') this will define a label.
 Following such a colon can come one of four things.
-- EOL	set the label value to the current offset plus the current origin.
+- ''	set the label value to the current offset plus the current origin. (end of line)
 - '='	set the label value to the following definite expression.
 - '-'	set the label value to the current offset plus the current origin minus the following definite expression.
 - '+'	set the label value to the current offset plus the current origin plus the following definite expression.
@@ -52,11 +51,16 @@ JR Z,GETKEY
 RET
 ```
 
-BASM built-in words:
+# BASM built-in words:
 `FORMAT ASM "PROGRAM"`-> The output is an Asm, protected program.
 `FORMAT ASM ARCHIVED "PROGRAM"`-> The output is an Archived, Asm, Protected program.
-`INCLUDE "APPVAR" NAMESPACE`-> Includes "APPVAR" with the namespace prefix NAMESPACE. Namepaces are useful for assembly speed, but are optional.
+`INCLUDE "APPVAR" NAMESPACE`-> Includes "APPVAR" with the namespace prefix NAMESPACE. Namepaces are useful for speeding up assembly time, but are optional.
 `DB 0,"Hi"`-> Write bytes into the output file.
 `DW 0,1,2`-> Write words (2 byte expressions) into the output file.
 `DL 0,100,.XFF0010` -> Write longs (3 byte expressions) into the output file.
+
+
+# Bugs:
+There is currently a bug with `jr` and `djnz` where any immediate number will assemble into a 0. Label expressions work fine, however.
+
 
