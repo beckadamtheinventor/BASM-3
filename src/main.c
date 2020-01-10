@@ -64,6 +64,7 @@ include_entry_t *last_include = &first_include;
 
 
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
+void removeLeadingSpaces(uint8_t *buffer);
 int parseLabel(char *buf,ti_var_t fp);
 void writeArgs(char *buf,int len,ti_var_t fp);
 void setLabelValue(const char *name,const char *value_ptr);
@@ -181,6 +182,7 @@ int assemble(const char *inFile, char *outFile){
 			uint8_t *line;
 			int i=0;
 			ptr=readTokens(&buf,511,ptr,max);
+			removeLeadingSpaces(&buf);
 			upperCaseStr(&buf);
 			line = &buf;
 			if (!strncmp(line,"LBL ",4)){
@@ -231,6 +233,7 @@ int assemble(const char *inFile, char *outFile){
 				ptr++;
 			} else {
 				ptr=readTokens(&buf,511,ptr,max);
+				removeLeadingSpaces(&buf);
 				if (*buf){
 					if ((unsigned)(buf[0]-0x61)<26) buf[0]-=0x20;
 					if ((unsigned)(buf[1]-0x61)<26) buf[1]-=0x20;
@@ -433,6 +436,12 @@ void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max){
 		}
 	}
 	return ptr;
+}
+
+void removeLeadingSpaces(uint8_t *buffer){
+	int i = 0;
+	while (buffer[i++]==' '); i--;
+	if (i) memcpy(buffer,buffer+i,strlen(buffer+i)+1);
 }
 
 void writeArgs(char *buf,int len,ti_var_t fp){
