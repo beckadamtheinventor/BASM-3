@@ -157,66 +157,23 @@ int getNumber(char **line,int offset,bool jr){
 	uint8_t base;
 	base=10;
 	ErrorCode=0;
-	if ((c=*(*line))=='('){
-		(*line)++;
-		number = getNumber(line,offset,jr);
-	} else {
-		number = 0;
-		if ((c<0x30||c>0x39)&&c!='.'){
-			uint8_t *data;
-			char *oldline;
-			char *nbuf;
-			label_t *gt;
-			oldline = *line;
-			if (nbuf=getWord(line)){
-				if (data=checkIncludes(nbuf)){
-					free(nbuf);
-					if (data[0]){
-						memcpy(&number,data+1,data[0]);
-					}
-				} else {
-					if (gt=findLabel(nbuf)){
-						free(nbuf);
-						if (gt->bytes&0x40){
-							ErrorCode = (char*)1;
-						} else {
-							if (jr) CURRENT_BYTES|=8;
-							number = getLabelValue(gt);
-						}
-					}
-				}
-			} else {
-				ErrorCode = MemoryError;
-			}
-		}
-	}
-	if (ErrorCode) return 0;
+	number = getNumberNoMath(line,&base);
+	if (jr) CURRENT_BYTES|=8;
 	while (c=*(*line)++){
-		if (c=='.') {
-			c=*(*line)++;
-			if (c=='X'){
-				base = 16;
-			} else if (c=='O') {
-				base = 8;
-			} else if (c=='D') {
-				base = 10;
-			} else if (c=='B') {
-				base = 2;
-			} else {
-				ErrorCode = "Invalid Number Base";
-				return 0;
-			}
+		if (c=='('){
+			(*line)++;
+			number = getNumber(line,offset,jr);
 		} else if (c=='-') {
-			number -= getNumber(line,offset,jr);
+			number -= getNumberNoMath(line,&base);
 		} else if (c=='+') {
-			number += getNumber(line,offset,jr);
+			number += getNumberNoMath(line,&base);
 		} else if (c=='/') {
-			number /= getNumber(line,offset,jr);
+			number /= getNumberNoMath(line,&base);
 		} else if (c=='*') {
-			number *= getNumber(line,offset,jr);
-		} else if (c=='='){
+			number *= getNumberNoMath(line,&base);
+		} else if (c=='=') {
 			if (*(*line)++=='='){
-				number = (number==getNumber(line,offset,jr));
+				number = number==getNumberNoMath(line,&base);
 			} else {
 				ErrorCode = "Invalid operator '='";
 				return 0;
@@ -224,36 +181,36 @@ int getNumber(char **line,int offset,bool jr){
 		} else if (c=='>') {
 			if ((c2=*(*line))=='>'){
 				(*line)++;
-				number >>= getNumber(line,offset,jr);
+				number = number >> getNumberNoMath(line,&base);
 			} else if (c2=='='){
-				number = number >= getNumber(line,offset,jr);
+				number = number >= getNumberNoMath(line,&base);
 			} else {
-				number = number > getNumber(line,offset,jr);
+				number = number > getNumberNoMath(line,&base);
 			}
 		} else if (c=='<'){
 			if ((c2=*(*line))=='<'){
 				(*line)++;
-				number <<= getNumber(line,offset,jr);
+				number = number << getNumberNoMath(line,&base);
 			} else if (c2=='=') {
-				number = number <= getNumber(line,offset,jr);
+				number = number <= getNumberNoMath(line,&base);
 			} else {
-				number = number < getNumber(line,offset,jr);
+				number = number < getNumberNoMath(line,&base);
 			}
 		} else if (c=='!'){
 			if ((c2=*(*line))=='A'){
-				number = number && getNumber(line,offset,jr);
+				number = number && getNumberNoMath(line,&base);
 			} else if (c2=='O'){
-				number = number || getNumber(line,offset,jr);
+				number = number || getNumberNoMath(line,&base);
 			} else if (c2=='X'){
-				number = !(number && getNumber(line,offset,jr));
+				number = !(number && getNumberNoMath(line,&base));
 			} else if (c2=='+'){
-				number &= getNumber(line,offset,jr);
+				number = number & getNumberNoMath(line,&base);
 			} else if (c2=='-') {
-				number |= getNumber(line,offset,jr);
+				number = number | getNumberNoMath(line,&base);
 			} else if (c2=='*') {
-				number ^= getNumber(line,offset,jr);
+				number = number ^ getNumberNoMath(line,&base);
 			} else if (c2=='M') {
-				number %= getNumber(line,offset,jr);
+				number = number % getNumberNoMath(line,&base);
 			} else {
 				ErrorCode = "Expected logical operator";
 				return 0;
@@ -261,20 +218,67 @@ int getNumber(char **line,int offset,bool jr){
 		} else if (c==')'||c==','){
 			(*line)++;
 			return number;
-		} else if (c!=' '){
-			uint8_t a = digitValue(c);
-			if (a<base){
-				number = number*base + a;
-			} else {
-				ErrorCode = "Number Format Error";
-				ErrorWord = (*line)-1;
-				return 0;
-			}
+		} else {
+			ErrorCode = "Number format Error";
 		}
+		if (ErrorCode) return 0;
 	}
 	return number;
 }
 
+int getNumberNoMath(char **line,uint8_t *base){
+	int number;
+	char c;
+	uint8_t a;
+	number = 0;
+	if ((c=**line)<0x30||c>0x39){
+		uint8_t *data;
+		char *oldline;
+		char *nbuf;
+		label_t *gt;
+		oldline = *line;
+		if (nbuf=getWord(line)){
+			if (gt=findLabel(nbuf)){
+				free(nbuf);
+				if (gt->bytes&0x40){
+					ErrorCode = UndefinedLabelError;
+				} else {
+					number = getLabelValue(gt);
+				}
+			} else if ((data=checkIncludes(nbuf))&&data[0]){
+				free(nbuf);
+				memcpy(&number,data+1,data[0]);
+			} else {
+				ErrorCode = UndefinedLabelError;
+			}
+		} else {
+			ErrorCode = MemoryError;
+		}
+		return number;
+	}
+	while (c=*(*line)++){
+		if (c=='.') {
+			c=*(*line)++;
+			if (c=='X'){
+				*base = 16;
+			} else if (c=='O') {
+				*base = 8;
+			} else if (c=='D') {
+				*base = 10;
+			} else if (c=='B') {
+				*base = 2;
+			} else {
+				ErrorCode = "Invalid Number Base";
+				return 0;
+			}
+		} else if ((a=digitValue(c))<(*base)) {
+			number = number*(*base) + a;
+		} else {
+			break;
+		}
+	}
+	return number;
+}
 
 int digitValue(char c){
 	uint8_t a;

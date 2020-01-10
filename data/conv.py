@@ -334,8 +334,22 @@ do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 for dt in do:
 	do2[dt[1][0]][checkDirect(dt[1])].append(dt)
 
+import os
+
+try:
+	os.makedirs("bin")
+except:
+	pass
+
+try:
+	os.makedirs("obj")
+except:
+	pass
+
+
+
 tbl=[]
-with open("opcode_list.bin","wb") as f:
+with open("obj/opcode_list.bin","wb") as f:
 	dt=b"BASM3-OPCODES"
 	f.write(dt)
 	f.write(bytes([0]*(85-len(dt)))) #remaining header length, and jump table to be filled in later
@@ -369,5 +383,6 @@ with open("opcode_list.bin","wb") as f:
 		f.write(bytes([84,0]))
 
 
-import os
-os.system("fasmg BASMdata.asm")
+with open("obj/BASMdata.asm","w") as f:
+	f.write("include 'include/tiformat.inc'\nformat ti archived appvar 'BASMdata'\nfile 'obj/opcode_list.bin'")
+os.system("fasmg obj/BASMdata.asm bin/BASMdata.8xv")

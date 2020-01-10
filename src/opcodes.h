@@ -22,6 +22,7 @@ typedef struct _label_{
 
 
 extern const char *MemoryError;
+extern const char *UndefinedLabelError;
 
 extern uint8_t ADDR_BYTES;
 extern char *ErrorCode;
@@ -38,7 +39,6 @@ extern uint8_t *checkIncludes(const char *name);
 extern void setGotoOffset(const char *name);
 extern void defineGoto(void *val,int offset);
 extern label_t *findLabel(const char *name);
-extern label_t *findGoto(const char *name);
 extern int getLabelValue(label_t *lbl);
 
 char *processOpcodeLine(const char *name);
@@ -48,5 +48,6 @@ bool isRegister(const char *name);
 bool isCondition(const char *name);
 
 int getNumber(char **line,int offset,bool jr);
+int getNumberNoMath(char **line,uint8_t *base);
 int digitValue(char c);
 char *getWord(const char **line);
