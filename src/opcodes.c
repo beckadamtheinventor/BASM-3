@@ -231,7 +231,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 	char c;
 	uint8_t a;
 	number = 0;
-	if ((c=**line)<0x30||c>0x39){
+	if (((c=**line)<0x30||c>0x39)&&c!='.'){
 		uint8_t *data;
 		char *oldline;
 		char *nbuf;
