@@ -367,12 +367,7 @@ int assemble(const char *inFile, char *outFile){
 							ti_Write(&val,gt->bytes&3,1,fp); //write in the data
 						}
 					} else { //try to set the label's value
-						uint8_t sbuf[26];
 						int val = getLabelValue(gt);
-						sprintf(&sbuf,"%s:%x",gt->name,val);
-						printAt(&sbuf,0,6);
-						pause();
-						printAt("                         ",0,6);
 						if (gt->bytes&0x80){ //pointer to value
 							if (ErrorCode==UndefinedLabelError){ //there's still undefined labels in the expression
 								ErrorCode=0;
