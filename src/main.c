@@ -115,6 +115,7 @@ void main(void){
 					internal_define_pointers[l] = (define_entry_t*)(org + *ptr++);
 				}
 				ti_Close(fp2);
+				gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
 				if (assemble(&inFile,&outFile)){
 					if (outFile[0]&&outFile[9]){
 						fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
@@ -134,6 +135,7 @@ void main(void){
 				} else {
 					error(ErrorCode,ErrorWord);
 				}
+				ti_Close(gfp);
 			}
 		} else {
 			printAt("Missing BASMdata.8xv",0,0);
@@ -150,7 +152,7 @@ int assemble(const char *inFile, char *outFile){
 	uint8_t *ptr;
 	uint8_t *max;
 	uint8_t buf[512];
-	int i;
+	int i,len;
 
 	if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
 		ErrorCode = "Input file not found";
@@ -158,13 +160,12 @@ int assemble(const char *inFile, char *outFile){
 		return 0;
 	}
 	I_FILE_ORG = (int)(ptr = ti_GetDataPtr(fp));
-	max = ptr+ti_GetSize(fp);
+	max = ptr+(len=ti_GetSize(fp));
 	ti_Close(fp);
 
 
 
 	printAt("Prescanning...",0,9);
-	gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
 	while (ptr<max){
 		uint8_t c;
 		ErrorCode = 0;
@@ -212,7 +213,7 @@ int assemble(const char *inFile, char *outFile){
 		printAt("Assembling...  ",0,9);
 
 		fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
-		ti_Resize(0xF000,fp);
+		if (len) ti_Resize(len,fp);
 		ptr = (uint8_t*)I_FILE_ORG;
 		assembling_line = 1;
 		while (ptr<max) {
@@ -252,6 +253,12 @@ int assemble(const char *inFile, char *outFile){
 										ORIGIN = 0xD1A87F;
 										outFile[9]=0x06;
 										line+=3;
+									} else if (!strncmp(line,"APPVAR",6)){
+										outFile[9]=0x15;
+										line+=6;
+									} else if (!strncmp(line,"PRGM",4)){
+										outFile[9]=0x06;
+										line+=4;
 									} else if (!strncmp(line,"ARCHIVED",8)){
 										outFile[10]|=1;
 										line+=8;
@@ -280,6 +287,9 @@ int assemble(const char *inFile, char *outFile){
 									}
 								} while (*line++);
 								if (ErrorCode) break;
+							} else if (!strncmp(&buf,"ORIGIN ",7)){
+								line = &buf[7];
+								ORIGIN=getNumber(&line,0,0);
 							} else if (!strncmp(&buf,"INCLUDE ",8)){
 								line = &buf[8];
 								if (*line=='"'){
@@ -371,7 +381,6 @@ int assemble(const char *inFile, char *outFile){
 		}
 		ti_Close(fp);
 	}
-	ti_Close(gfp);
 
 	return !(int)ErrorCode;
 }
@@ -437,9 +446,13 @@ void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max){
 }
 
 void removeLeadingSpaces(uint8_t *buffer){
+	int j;
 	int i = 0;
 	while (buffer[i++]==' '); i--;
-	if (i) memcpy(buffer,buffer+i,strlen(buffer+i)+1);
+	j=i;
+	while ((buffer[i])&&strncmp(buffer+i,"//",2)) i++;
+	if (j) memcpy(buffer,buffer+j,1+i-j);
+	buffer[i]=0;
 }
 
 void writeArgs(char *buf,int len,ti_var_t fp){
