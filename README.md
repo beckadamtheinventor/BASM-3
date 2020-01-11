@@ -66,6 +66,9 @@ RET
 # BASM built-in words:
 `FORMAT ASM "PROGRAM"`-> The output is an Asm, protected program.
 `FORMAT ASM ARCHIVED "PROGRAM"`-> The output is an Archived, Asm, Protected program.
+`FORMAT APPVAR "APPVAR"` -> The output is an appvar.
+`FORMAT PRGM "PROGRAM"` -> The output is a protected program.
+`ORIGIN 0` -> The output's label origin is 0.
 `INCLUDE "APPVAR" NAMESPACE`-> Includes "APPVAR" with the namespace prefix NAMESPACE. Namepaces are useful for speeding up assembly time, but are optional.
 `DB 0,"Hi"`-> Write bytes into the output file.
 `DW 0,1,2`-> Write words (2 byte expressions) into the output file.
