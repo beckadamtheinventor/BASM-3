@@ -327,8 +327,6 @@ int assemble(const char *inFile, char *outFile){
 							} else {
 								ErrorCode = UndefinedLabelError;
 							}
-						} else if (!strncmp(&buf,"//",2)){
-							continue;
 						} else {
 							if (!ErrorCode) ErrorCode = "Syntax";
 						}
@@ -450,9 +448,9 @@ void removeLeadingSpaces(uint8_t *buffer){
 	int i = 0;
 	while (buffer[i++]==' '); i--;
 	j=i;
-	while ((buffer[i])&&strncmp(buffer+i,"//",2)) i++;
-	if (j) memcpy(buffer,buffer+j,1+i-j);
-	buffer[i]=0;
+	while (buffer[i++]&&strncmp(buffer+i,"//",2));
+	if (j&&i>j) memcpy(buffer,buffer+j,i-j);
+	buffer[i-1]=0;
 }
 
 void writeArgs(char *buf,int len,ti_var_t fp){
@@ -610,6 +608,7 @@ uint8_t *checkIncludes(const char *name){
 	include_entry_t *ent = &first_include;
 	do {
 		uint8_t *rv;
+		char *cname;
 		int len;
 		bool i = 0;
 		if (!*ent->namespace){
@@ -622,7 +621,8 @@ uint8_t *checkIncludes(const char *name){
 			}
 		}
 		if (i){
-			if (rv=searchIncludeFile(ent->fname,name+len)){
+			cname = name+len;
+			if (rv=searchIncludeFile(ent->fname,cname)){
 				return rv;
 			}
 		}
