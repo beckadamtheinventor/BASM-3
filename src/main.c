@@ -363,6 +363,8 @@ int assemble(const char *inFile, char *outFile){
 								break;
 							}
 						}
+					} else {
+						val -= 2; //argument offsets from the start of the opcode.
 					}
 					ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
 					ti_Write(&val,gt->bytes&3,1,fp); //write in the data

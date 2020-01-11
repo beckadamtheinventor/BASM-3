@@ -274,6 +274,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 	int number;
 	char c;
 	uint8_t a;
+	bool neg=0;
 	number = 0;
 	if (((unsigned)((c=*(*line))-0x30)>=10)&&c!='.'&&c){
 		uint8_t *data;
@@ -317,6 +318,8 @@ int getNumberNoMath(char **line,uint8_t *base){
 				ErrorCode = "Invalid Number Base";
 				return 0;
 			}
+		} else if (c=='-'){
+			neg=1;
 		} else if ((a=digitValue(c))<(*base)) {
 			number = number*(*base) + a;
 		} else if (c!=' '){
@@ -324,6 +327,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 		}
 	}
 	(*line)--;
+	if (neg) number = -number;
 	return number;
 }
 
