@@ -338,6 +338,7 @@ int assemble(const char *inFile, char *outFile){
 				printAt(&buffer,14,9);
 				if (ErrorCode) {
 					if (!ErrorWord) ErrorWord = &buf;
+					printAt(&buf,0,6);
 					break;
 				}
 				assembling_line++;
@@ -374,7 +375,9 @@ int assemble(const char *inFile, char *outFile){
 						}
 					}
 				}
-				if (ErrorCode) break;
+				if (ErrorCode) {
+					if (!ErrorWord) ErrorWord=(char*)gt->value;
+				}
 			}
 		}
 		ti_Close(fp);
@@ -448,9 +451,9 @@ void removeLeadingSpaces(uint8_t *buffer){
 	int i = 0;
 	while (buffer[i++]==' '); i--;
 	j=i;
-	while (buffer[i++]&&strncmp(buffer+i,"//",2));
-	if (j&&i>j) memcpy(buffer,buffer+j,i-j);
-	buffer[i-1]=0;
+	do i++; while (buffer[i]&&strncmp(buffer+i,"//",2));
+	if (j) strcpy(buffer,buffer+j);
+	buffer[i]=0;
 }
 
 void writeArgs(char *buf,int len,ti_var_t fp){
