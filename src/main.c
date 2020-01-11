@@ -81,11 +81,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname);
 bool includeFile(const char *fname,const char *namespace);
 
 void error(const char *str,const char *word);
-void print(const char *str);
-void printX(const char *str,int amt);
 void printAt(const char *str,uint8_t x,uint8_t y);
 void printXAt(const char *str,int amt,uint8_t x,uint8_t y);
-char *trimWord(char *str);
 char *upperCaseStr(char *str);
 sk_key_t pause(void);
 
@@ -348,8 +345,8 @@ int assemble(const char *inFile, char *outFile){
 				label_t *gt = &WORD_STACK[i];
 				if (gt->bytes&7){ //set address for this item.
 					int val = getLabelValue(gt); //get the goto's value
-					if (!ErrorCode) {
-						if (gt->bytes&8){
+					if (gt->bytes&8){
+						if ((unsigned)(val+0x80)>0xFF){ //if it's not already within the correct range
 							val -= gt->org+gt->offset+(gt->bytes&7); //calculate the JR offset byte
 							if ((unsigned)(val+0x80)>0xFF){
 								ErrorCode = "JR offset out of range";
@@ -357,9 +354,9 @@ int assemble(const char *inFile, char *outFile){
 								break;
 							}
 						}
-						ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
-						ti_Write(&val,gt->bytes&3,1,fp); //write in the data
 					}
+					ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
+					ti_Write(&val,gt->bytes&3,1,fp); //write in the data
 				} else { //try to set the label's value
 					int val = getLabelValue(gt);
 					if (gt->bytes&0x80){ //pointer to value
@@ -369,6 +366,7 @@ int assemble(const char *inFile, char *outFile){
 						}
 					}
 				}
+				if (ErrorCode) break;
 			}
 		}
 		ti_Close(fp);
@@ -478,11 +476,11 @@ label_t *findLabel(const char *name){
 }
 
 int getLabelValue(label_t *lbl){ //get the value of a label
-	if (lbl->bytes&0x80){
+	if (lbl->bytes&0x80){ //it's a pointer to the value
 		void *ptr = (void*)lbl->value;
 		return getNumber(&ptr,0,0); //return the computed value
 	}
-	return lbl->value;
+	return lbl->value; //it's just a plain value
 }
 
 void setLabelValue(const char *name,const char *value_ptr){
@@ -527,6 +525,8 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 	define_entry_t *ptr;
 	if (data=checkInternal(name,&ptr)){
 		return data;
+	} else if (data=checkIncludes(name)){
+		return data;
 	} else if (data=processOpcodeLine(name)){
 		while (ptr->bytes){
 			if (!strncmp(data,&ptr->opcode,12)){
@@ -542,13 +542,12 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 					if (ptr->flags&(F_OFFSET_ARG|F_BYTE_ARG)){
 						CURRENT_BYTES|=1;
 					} else if (ptr->flags&F_LONG_ARG){
-						int num;
 						CURRENT_BYTES|=ADDR_BYTES;
 						if (ADDR_BYTES!=2) buf4[0]++;
 					}
 					free(data);
 					if (data=getArgFromLine(name)){
-						defineGoto(data,i); //we need to set this address eventually.
+						defineGoto(data,i); //we need to set this address eventually if it's undefined.
 					}
 					return buf4;
 				} else {
@@ -577,10 +576,11 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 			i = cname[0]-0x41;
 			ptr += *((uint16_t*)(ptr+i*2+32)); //get the pointer to the list of constants starting with the first letter
 			while (*ptr){
+				uint8_t *next = ptr+strlen(ptr)+1;
 				if (!strcmp(cname,ptr)){ //found it!
-					return ptr+strlen(ptr)+1; //return the value
+					return next; //return the value
 				}
-				ptr+=strlen(ptr)+5; //continue searching
+				ptr=next+*next+1; //continue searching
 			}
 		}
 	}
@@ -614,7 +614,6 @@ uint8_t *checkIncludes(const char *name){
 			}
 		}
 	} while (ent=ent->next);
-	ErrorCode = UndefinedLabelError;
 	ErrorWord = name;
 	return 0;
 }
@@ -653,35 +652,6 @@ void error(const char *str,const char *word){
 		sprintf(&sbuf,"Error on line %d",assembling_line);
 		printAt(&sbuf,0,3);
 	}
-}
-
-char *trimWord(char *str){
-	uint8_t *i;
-	i = str;
-	while (*i!=' ' && *i) i++;
-	*i = 0;
-	return str;
-}
-
-void print(const char *str){
-	unsigned int row,col;
-	os_NewLine();
-	os_GetCursorPos(&row,&col);
-	if (row>=9){
-		os_SetCursorPos(0,9);
-		os_PutStrFull("                          ");
-		os_SetCursorPos(0,9);
-	}
-	os_PutStrFull(str);
-}
-
-
-void printX(const char *str,int amt){
-	char *s = (char*)malloc(amt+1);
-	memcpy(s,str,amt);
-	s[amt] = 0;
-	print(s);
-	free(s);
 }
 
 void printAt(const char *str,uint8_t x,uint8_t y){

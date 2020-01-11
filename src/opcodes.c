@@ -96,12 +96,10 @@ char *getArgFromLine(const char *line){
 	cc=',';
 	while ((c=*line++)&&c!=' '); //skip the first word
 	if (c){
-		char *data;
-		int len;
 		if ((unsigned)(c-0x30)>=10){
 			while (c=*line){
 				if (isRegister(line)){
-					if ((c=*line++)!='A'){
+					if ((c=*line++)!='A'||(*line=='F')){
 						char c2 = *line++;
 						if (c=='I'&&(c2=='X'||c2=='Y')){
 							if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
@@ -120,6 +118,7 @@ char *getArgFromLine(const char *line){
 					if ((c=*line)!=','){
 						line++;
 					}
+					line++;
 				} else if (isAlphaNumeric(c)){
 					break;
 				} else {
@@ -128,19 +127,22 @@ char *getArgFromLine(const char *line){
 				}
 			}
 		}
-		if (*line){
-			len=0;
+		if (c=*line){
+			char *data;
+			int len=0;
+			if (c==',') line++;
 			do c=line[++len]; while (c&&c!=cc);
-			if (data=malloc(len+1)){
-				int num;
-				memcpy(data,line,len);
-				data[len]=0;
-				return data;
-			} else {
-				ErrorCode = MemoryError;
+			if (len){
+				if (data=malloc(len+1)){
+					int num;
+					memcpy(data,line,len);
+					data[len]=0;
+					return data;
+				} else {
+					ErrorCode = MemoryError;
+				}
 			}
 		}
-		return 0;
 	}
 	return 0;
 }
@@ -156,10 +158,12 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 		char *line3 = line2;
 		while ((c=*line++)&&c!=' ') *line2++=c;
 		*line2++=c;
-		while (c=*line++){
-			if (c!=' ') *line2++=c;
+		if (c){
+			while (c=*line++){
+				if (c!=' ') *line2++=c;
+			}
+			*line2++=0;
 		}
-		*line2++=0;
 		while (ptr->bytes&&(ptr->flags&F_DIRECT_CMP)){
 			if (!strncmp(line3,&ptr->opcode,12)) {
 				free(line3);
@@ -271,23 +275,25 @@ int getNumberNoMath(char **line,uint8_t *base){
 	char c;
 	uint8_t a;
 	number = 0;
-	if (((c=**line)<0x30||c>0x39)&&c!='.'&&c){
+	if (((unsigned)((c=*(*line))-0x30)>=10)&&c!='.'&&c){
 		uint8_t *data;
 		char *oldline;
 		char *nbuf;
 		label_t *gt;
 		oldline = *line;
 		if (nbuf=getWord(line)){
-			if (gt=findLabel(nbuf)){
+			if (data=checkIncludes(nbuf)){
+				free(nbuf);
+				if (data[0]){
+					memcpy(&number,data+1,data[0]);
+				}
+			} else if (gt=findLabel(nbuf)){
 				free(nbuf);
 				if (gt->bytes&0x40){
 					ErrorCode = UndefinedLabelError;
 				} else {
 					number = getLabelValue(gt);
 				}
-			} else if ((data=checkIncludes(nbuf))&&data[0]){
-				free(nbuf);
-				memcpy(&number,data+1,data[0]);
 			} else {
 				ErrorCode = UndefinedLabelError;
 			}
@@ -311,13 +317,13 @@ int getNumberNoMath(char **line,uint8_t *base){
 				ErrorCode = "Invalid Number Base";
 				return 0;
 			}
-		} else if (c==' '){
 		} else if ((a=digitValue(c))<(*base)) {
 			number = number*(*base) + a;
-		} else {
+		} else if (c!=' '){
 			break;
 		}
 	}
+	(*line)--;
 	return number;
 }
 

@@ -199,7 +199,7 @@ C3 JP   &0000       -                SET  0,E         -                -
 C4 CALL NZ,&0000    -                SET  0,H         -                -
 C5 PUSH BC          -                SET  0,L         -                -
 C6 ADD  A,&00       -                SET  0,(HL)      SET 0,(IY+d)     -
-C7 RST  &00         -                SET  0,A         -                LD  I,HL
+C7 RST  00          -                SET  0,A         -                LD  I,HL
 C8 RET  Z           -                SET  1,B         -                -
 C9 RET              -                SET  1,C         -                -
 CA JP   Z,&0000     -                SET  1,D         -                -
@@ -207,7 +207,7 @@ CB **** CB ****     **** CB ****     SET  1,E         -                -
 CC CALL Z,&0000     -                SET  1,H         -                -
 CD CALL &0000       -                SET  1,L         -                -
 CE ADC  A,&00       -                SET  1,(HL)      SET 1,(IY+d)     -
-CF RST  &08         -                SET  1,A         -                -
+CF RST  08          -                SET  1,A         -                -
 D0 RET  NC          -                SET  2,B         -                -
 D1 POP  DE          -                SET  2,C         -                -
 D2 JP   NC,&0000    -                SET  2,D         -                -
@@ -215,7 +215,7 @@ D3 OUT  (&00),A     -                SET  2,E         -                -
 D4 CALL NC,&0000    -                SET  2,H         -                -
 D5 PUSH DE          -                SET  2,L         -                -
 D6 SUB  A,&00       -                SET  2,(HL)      SET 2,(IY+d)     -
-D7 RST  &10         -                SET  2,A         -                LD  HL,I
+D7 RST  10          -                SET  2,A         -                LD  HL,I
 D8 RET  C           -                SET  3,B         -                -
 D9 EXX              -                SET  3,C         -                -
 DA JP   C,&0000     -                SET  3,D         -                -
@@ -223,7 +223,7 @@ DB IN   A,(&00)     -                SET  3,E         -                -
 DC CALL C,&0000     -                SET  3,H         -                -
 DD **** DD ****     -                SET  3,L         -                -
 DE SBC  A,&00       -                SET  3,(HL)      SET 3,(IY+d)     -
-DF RST  &18         -                SET  3,A         -                -
+DF RST  18          -                SET  3,A         -                -
 E0 RET  PO          -                SET  4,B         -                -
 E1 POP  HL          POP  IX          SET  4,C         -                -
 E2 JP   PO,&0000    -                SET  4,D         -                -
@@ -231,15 +231,15 @@ E3 EX   (SP),HL     EX   (SP),IX     SET  4,E         -                -
 E4 CALL PO,&0000    -                SET  4,H         -                -
 E5 PUSH HL          PUSH IX          SET  4,L         -                -
 E6 AND  A,&00       -                SET  4,(HL)      SET 4,(IY+d)     -
-E7 RST  &20         -                SET  4,A         -                -
+E7 RST  20          -                SET  4,A         -                -
 E8 RET  PE          -                SET  5,B         -                -
-E9 JP   (HL)        JP   (IX@)       SET  5,C         -                -
+E9 JP   (HL)        JP   (IX)        SET  5,C         -                -
 EA JP   PE,&0000    -                SET  5,D         -                -
 EB EX   DE,HL       -                SET  5,E         -                -
 EC CALL PE,&0000    -                SET  5,H         -                -
 ED **** ED ****     -                SET  5,L         -                -
 EE XOR  A,&00       -                SET  5,(HL)      SET 5,(IY+d)     -
-EF RST  &28         -                SET  5,A         -                -
+EF RST  28          -                SET  5,A         -                -
 F0 RET  P           -                SET  6,B         -                -
 F1 POP  AF          -                SET  6,C         -                -
 F2 JP   P,&0000     -                SET  6,D         -                -
@@ -247,15 +247,15 @@ F3 DI               -                SET  6,E         -                -
 F4 CALL P,&0000     -                SET  6,H         -                -
 F5 PUSH AF          -                SET  6,L         -                -
 F6 OR   A,&00       -                SET  6,(HL)      SET 6,(IY+d)     -
-F7 RST  &30         -                SET  6,A         -                -
+F7 RST  30          -                SET  6,A         -                -
 F8 RET  M           -                SET  7,B         -                -
-F9 LD   SP,HL       LD   SP,IX@      SET  7,C         -                -
+F9 LD   SP,HL       LD   SP,IX       SET  7,C         -                -
 FA JP   M,&0000     -                SET  7,D         -                -
 FB EI               -                SET  7,E         -                -
 FC CALL M,&0000     -                SET  7,H         -                -
 FD **** FD ****     -                SET  7,L         -                -
 FE CP   A,&00       -                SET  7,(HL)      SET 7,(IY+d)     -
-FF RST  &38         -                SET  7,A         -                -
+FF RST  38          -                SET  7,A         -                -
 """
 
 HEX="0123456789ABCDEF"

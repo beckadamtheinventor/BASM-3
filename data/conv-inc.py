@@ -64,7 +64,14 @@ with open("obj/"+fname+".bin","wb") as f:
 		tbl.append(f.tell())
 		for word in letters[letter]:
 			f.write(bytes(word[0],'UTF-8'))
-			f.write(bytes([0,3,word[1]&0xFF,(word[1]//0x100)&0xFF,(word[1]//0x10000)&0xFF]))
+			arg=[word[1]&0xFF,(word[1]//0x100)&0xFF,(word[1]//0x10000)&0xFF]
+			a=3
+			for i in range(3):
+				if arg[-i]:
+					break
+				else:
+					a-=1
+			f.write(bytes([0,a]+arg[:a]))
 		f.write(bytes([0]))
 
 	size=f.tell()
