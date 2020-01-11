@@ -6,11 +6,23 @@ Beck's Assembler v3 - "On-calc" Assembler for the TI84+CE family of graphing cal
 
 # How-to
 
-Send `BASM.8xp`, and all the `.8xv` files to the calculator.
+Send `BASM.8xp`, and `BASMdata.8xv` to the calculator.
 Type in the program name you wish to compile from the TI-OS homescreen like so:
 `"PROGRAM"`
 Press enter, then run BASM.
-If all is successful, you should see the output binary.
+If all is successful, you should see the output binary. Otherwise BASM will tell you what went wrong.
+
+# includes
+The rest of the appvars included with BASM are include files.
+`include "TI84PCEG" TIθ`
+This will allow your program to reference the standard ti84pce.inc defines, using the namespace `TIθ`
+
+# include files and their contents
+`TI84PCEG.8xv` -> Most of ti84pce.inc
+`TIOSRTNS.8xv` -> OS routine calls
+`TIOSRAMA.8xv` -> RAM areas and ports
+`TIOSFLAG.8xv` -> OS Flags
+
 
 The opcodes of BASM are the same as when using "eZ80.inc" with fasmg.
 Local labels are not yet implemented. Stay tuned.
@@ -58,9 +70,5 @@ RET
 `DB 0,"Hi"`-> Write bytes into the output file.
 `DW 0,1,2`-> Write words (2 byte expressions) into the output file.
 `DL 0,100,.XFF0010` -> Write longs (3 byte expressions) into the output file.
-
-
-# Bugs:
-There is currently a bug with `jr` and `djnz` where any immediate number will assemble into a 0. Label expressions work fine, however.
 
 
