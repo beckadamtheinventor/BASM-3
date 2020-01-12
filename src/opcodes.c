@@ -131,7 +131,7 @@ char *getArgFromLine(const char *line){
 			char *data;
 			int len=0;
 			if (c==',') line++;
-			do c=line[++len]; while (c&&c!=cc);
+			do c=line[len++]; while (c&&c!=cc); len--;
 			if (len){
 				if (data=malloc(len+1)){
 					int num;
@@ -195,18 +195,31 @@ bool isCondition(const char *name){
 	(c=='P'&&(c2=='O'||c2=='E'||(!isAlphaNumeric(c2))));
 }
 
-int getNumber(char **line,int offset,bool jr){
+int getNumber(char **line,label_t *gt,bool jr){
 	unsigned char c,c2;
 	int number;
 	uint8_t base;
 	base=10;
 	ErrorCode=0;
-	number = getNumberNoMath(line,&base);
+	if ((c=**line)==':'&&gt){
+		(*line)++; c=*(*line)++;
+		if (c=='-'){
+			number = gt->offset+gt->org - getNumberNoMath(line,&base);
+		} else if (c=='+'){
+			number = gt->offset+gt->org + getNumberNoMath(line,&base);
+		} else if (c=='='){
+			number = getNumberNoMath(line,&base);
+		} else {
+			return gt->offset+gt->org;
+		}
+	} else {
+		number = getNumberNoMath(line,&base);
+	}
 	if (jr) CURRENT_BYTES|=8;
 	while (c=*(*line)++){
 		if (c=='('){
 			(*line)++;
-			number = getNumber(line,offset,jr);
+			number = getNumber(line,gt,jr);
 		} else if (c=='-') {
 			number -= getNumberNoMath(line,&base);
 		} else if (c=='+') {

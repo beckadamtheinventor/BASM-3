@@ -65,13 +65,13 @@ include_entry_t *last_include = &first_include;
 
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
 void removeLeadingSpaces(uint8_t *buffer);
-int parseLabel(char *buf,ti_var_t fp);
+int parseLabel(char *buf);
 void writeArgs(char *buf,int len,ti_var_t fp);
-void setLabelValue(const char *name,const char *value_ptr);
-void setLabelValueValue(const char *name,int value);
+void setLabelValue(label_t *data,const char *value_ptr);
+void setLabelValueValue(label_t *data,int value);
 int getLabelValue(label_t *lbl);
 label_t *findLabel(const char *name);
-void defineLabel(const char *name,int val);
+void defineLabel(const char *name,void *val);
 void defineGoto(void *val,int offset);
 void UpdateWordStack(void);
 int assemble(const char *inFile, char *outFile);
@@ -153,6 +153,7 @@ int assemble(const char *inFile, char *outFile){
 	uint8_t *max;
 	uint8_t buf[512];
 	int i,len;
+	uint8_t c;
 
 	if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
 		ErrorCode = "Input file not found";
@@ -164,262 +165,227 @@ int assemble(const char *inFile, char *outFile){
 	ti_Close(fp);
 
 
+	UpdateWordStack();
+	printAt("Assembling...  ",0,9);
 
-	printAt("Prescanning...",0,9);
-	while (ptr<max){
-		uint8_t c;
-		ErrorCode = 0;
+	fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
+	if (len) ti_Resize(len,fp);
+	ptr = (uint8_t*)I_FILE_ORG;
+	assembling_line = 1;
+	while (ptr<max) {
+		uint8_t *edata;
+		O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-(O_FILE_TELL=ti_Tell(fp));
+
+
 		if (os_GetCSC()==sk_Clear){
 			ErrorCode = UserBreakError;
 			ErrorWord = UserBreakWord;
 			break;
-		} else if ((c=*((uint8_t*)ptr))==tEnter){
+		}
+		ErrorCode = 0;
+		if (*ptr==tEnter){
 			ptr++;
 		} else {
-			uint8_t c;
-			uint8_t *line;
-			int i=0;
 			ptr=readTokens(&buf,511,ptr,max);
 			removeLeadingSpaces(&buf);
-			upperCaseStr(&buf);
-			line = &buf;
-			if (!strncmp(line,"LBL ",4)){
-				line+=4;
-			}
-			while ((c=line[++i])&&c!=':'); //skip until ':'
-			if (c==':'){
-				uint8_t *data;
-				int len;
-				ErrorWord=0;
-				len = strlen(line)+1;
-				line[i++]=0;
-				if (data = malloc(len)){
-					int val;
-					memcpy(data,line,len);
-					defineLabel(data,0);
-					if (data[i]=='='){
-						setLabelValue(data,ErrorWord=data+i+1);
-					}
+			if (*buf){
+				if ((unsigned)(buf[0]-0x61)<26) buf[0]-=0x20;
+				if ((unsigned)(buf[1]-0x61)<26) buf[1]-=0x20;
+				if (!strncmp(&buf,"DB ",3)){
+					writeArgs(&buf[3],1,fp);
+				} else if (!strncmp(&buf,"DW ",3)){
+					writeArgs(&buf[3],2,fp);
+				} else if (!strncmp(&buf,"DL ",3)){
+					writeArgs(&buf[3],3,fp);
 				} else {
-					ErrorCode = MemoryError;
-					break;
-				}
-			}
-		}
-	}
-	if (!ErrorCode){
-		uint8_t c;
-		UpdateWordStack();
-		printAt("Assembling...  ",0,9);
-
-		fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
-		if (len) ti_Resize(len,fp);
-		ptr = (uint8_t*)I_FILE_ORG;
-		assembling_line = 1;
-		while (ptr<max) {
-			uint8_t *edata;
-			O_FILE_ORG = (int)(O_FILE_PTR=ti_GetDataPtr(fp))-(O_FILE_TELL=ti_Tell(fp));
-
-
-			if (os_GetCSC()==sk_Clear){
-				ErrorCode = UserBreakError;
-				ErrorWord = UserBreakWord;
-				break;
-			}
-			ErrorCode = 0;
-			if (*ptr==tEnter){
-				ptr++;
-			} else {
-				ptr=readTokens(&buf,511,ptr,max);
-				removeLeadingSpaces(&buf);
-				if (*buf){
-					if ((unsigned)(buf[0]-0x61)<26) buf[0]-=0x20;
-					if ((unsigned)(buf[1]-0x61)<26) buf[1]-=0x20;
-					if (!strncmp(&buf,"DB ",3)){
-						writeArgs(&buf[3],1,fp);
-					} else if (!strncmp(&buf,"DW ",3)){
-						writeArgs(&buf[3],2,fp);
-					} else if (!strncmp(&buf,"DL ",3)){
-						writeArgs(&buf[3],3,fp);
-					} else {
-						uint8_t *line;
-						upperCaseStr(&buf[2]);
-						if ((unsigned)((c=*buf)-0x41)<27){
-							if (!strncmp(&buf,"//",2)){
-								continue;
-							} else if (!strncmp(&buf,"FORMAT ",7)){
-								line = &buf[7];
-								do {
-									if (!strncmp(line,"ASM",3)){
-										ti_Write("\xEF\x7B",2,1,fp);
-										ORIGIN = 0xD1A87F;
-										outFile[9]=0x06;
-										line+=3;
-									} else if (!strncmp(line,"APPVAR",6)){
-										outFile[9]=0x15;
-										line+=6;
-									} else if (!strncmp(line,"PRGM",4)){
-										outFile[9]=0x06;
-										line+=4;
-									} else if (!strncmp(line,"ARCHIVED",8)){
-										outFile[10]|=1;
-										line+=8;
-									} else if (*line=='"'){
-										int len = 0;
-										line++;
-										do c=line[len++]; while (c&&c!='"'); len--;
-										if (!len){
-											ErrorCode = "Output name can't be empty";
-											ErrorWord = line-1;
-											break;
-										} else {
-											if (len>8){
-												ErrorCode = "Output name too long";
-												ErrorWord = line-1;
-												break;
-											}
-											memcpy(outFile,line,len);
-											outFile[len]=0;
-										}
-										line+=len+1;
-									} else {
-										ErrorCode = "Invalid format directive";
-										ErrorWord = line;
-										break;
-									}
-								} while (*line++);
-								if (ErrorCode) break;
-							} else if (!strncmp(&buf,"ORIGIN ",7)){
-								line = &buf[7];
-								ORIGIN=getNumber(&line,0,0);
-							} else if (!strncmp(&buf,"INCLUDE ",8)){
-								line = &buf[8];
-								if (*line=='"'){
+					uint8_t *line;
+					upperCaseStr(&buf[2]);
+					if (!strncmp(&buf,"//",2)){
+						continue;
+					} else if ((unsigned)((c=*buf)-0x41)<27){
+						if (!strncmp(&buf,"FORMAT ",7)){
+							line = &buf[7];
+							do {
+								if (!strncmp(line,"ASM",3)){
+									ti_Write("\xEF\x7B",2,1,fp);
+									ORIGIN = 0xD1A87F;
+									outFile[9]=0x06;
+									line+=3;
+								} else if (!strncmp(line,"APPVAR",6)){
+									outFile[9]=0x15;
+									line+=6;
+								} else if (!strncmp(line,"PRGM",4)){
+									outFile[9]=0x06;
+									line+=4;
+								} else if (!strncmp(line,"ARCHIVED",8)){
+									outFile[10]|=1;
+									line+=8;
+								} else if (*line=='"'){
 									int len = 0;
 									line++;
 									do c=line[len++]; while (c&&c!='"'); len--;
-									if (len){
-										char *incname;
-										char *nsname;
-										if (len>8){
-											ErrorCode = "Appvar name too long";
-										}
-										line[len]=0;
-										incname = line;
-										line+=len+2;
-										len = strlen(line);
-										if (nsname=malloc(len+1)){
-											if (len) memcpy(nsname,line,len);
-											nsname[len]=0;
-											includeFile(incname,nsname);
-										}
+									if (!len){
+										ErrorCode = "Output name can't be empty";
+										ErrorWord = line-1;
+										break;
 									} else {
-										ErrorCode = "Null appvar name";
+										if (len>8){
+											ErrorCode = "Output name too long";
+											ErrorWord = line-1;
+											break;
+										}
+										memcpy(outFile,line,len);
+										outFile[len]=0;
+									}
+									line+=len+1;
+								} else {
+									ErrorCode = "Invalid format directive";
+									ErrorWord = line;
+									break;
+								}
+							} while (*line++);
+							if (ErrorCode) break;
+						} else if (!strncmp(&buf,"ORIGIN ",7)){
+							line = &buf[7];
+							ORIGIN=getNumber(&line,0,0);
+						} else if (!strncmp(&buf,"INCLUDE ",8)){
+							line = &buf[8];
+							if (*line=='"'){
+								int len = 0;
+								line++;
+								do c=line[len++]; while (c&&c!='"'); len--;
+								if (len){
+									char *incname;
+									char *nsname;
+									if (len>8){
+										ErrorCode = "Appvar name too long";
+									}
+									line[len]=0;
+									incname = line;
+									line+=len+2;
+									len = strlen(line);
+									if (nsname=malloc(len+1)){
+										if (len) memcpy(nsname,line,len);
+										nsname[len]=0;
+										includeFile(incname,nsname);
 									}
 								} else {
-									ErrorCode = "Invalid argument";
+									ErrorCode = "Null appvar name";
 								}
-							} else if (!strncmp(&buf,"LBL ",4)){
-								parseLabel(&buf[4],fp);
-								ErrorCode = 0;
-							} else if (parseLabel(&buf,fp)){
-								ErrorCode = 0;
-							} else if (edata=getEmitData(&buf)){
-								ti_Write(edata+1,edata[0],1,fp);
 							} else {
-								ErrorCode = UndefinedLabelError;
+								ErrorCode = "Invalid argument";
+							}
+						} else if (!strncmp(&buf,"LBL ",4)){
+							if (parseLabel(&buf[4])) ErrorCode = 0;
+						} else if (parseLabel(&buf)){
+							ErrorCode = 0;
+						} else if (edata=getEmitData(&buf)){
+							if (!*edata){
+								ti_Write(edata+3,*((uint16_t*)edata+1),1,fp);
+							} else {
+								ti_Write(edata+1,edata[0],1,fp);
 							}
 						} else {
-							if (!ErrorCode) ErrorCode = "Syntax";
+							ErrorCode = UndefinedLabelError;
 						}
+					} else {
+						if (!ErrorCode) ErrorCode = "Syntax";
 					}
-				} else {
-					ptr++;
 				}
-				sprintf(&buffer,"line %d",assembling_line);
-				printAt(&buffer,14,9);
-				if (ErrorCode) {
-					if (!ErrorWord) ErrorWord = &buf;
-					printAt(&buf,0,6);
-					break;
-				}
-				assembling_line++;
+			} else {
+				ptr++;
 			}
-		}
-		if (!ErrorCode){
-			//ti_Resize(ti_Tell(fp),fp); //this bugs out for some reason
-			O_FILE_SIZE = ti_Tell(fp);
-			assembling_line = 0;
-			printAt("Filling addresses...     ",0,9);
-			i = WORD_SP;
-			while (i--) {
-				label_t *gt = &WORD_STACK[i];
-				if (gt->bytes&7){ //set address for this item.
-					int val = getLabelValue(gt); //get the goto's value
-					if (gt->bytes&8){
-						if ((unsigned)(val+0x80)>0xFF){ //if it's not already within the correct range
-							val -= gt->org+gt->offset+(gt->bytes&7); //calculate the JR offset byte
-							if ((unsigned)(val+0x80)>0xFF){
-								ErrorCode = "JR offset out of range";
-								ErrorWord = (char*)gt->value;
-								break;
-							}
-						} else {
-							val -= 2; //argument offsets from the start of the opcode.
-						}
-					}
-					ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
-					ti_Write(&val,gt->bytes&3,1,fp); //write in the data
-				} else { //try to set the label's value
-					int val = getLabelValue(gt);
-					if (gt->bytes&0x80){ //pointer to value
-						if (!ErrorCode){
-							gt->bytes&=0x3F;
-							gt->value = val;
-						}
-					}
-				}
-				if (ErrorCode) {
-					if (!ErrorWord) ErrorWord=(char*)gt->value;
-				}
+			sprintf(&buffer,"line %d",assembling_line);
+			printAt(&buffer,14,9);
+			if (ErrorCode) {
+				if (!ErrorWord) ErrorWord = &buf;
+				printAt(&buf,0,6);
+				break;
 			}
+			assembling_line++;
 		}
-		ti_Close(fp);
 	}
-
+	if (!ErrorCode){
+		label_t *gt;
+		//ti_Resize(ti_Tell(fp),fp); //this bugs out for some reason
+		O_FILE_SIZE = ti_Tell(fp);
+		assembling_line = 0;
+		printAt("Filling addresses...     ",0,9);
+		i = WORD_SP;
+		while (i--) {
+			gt = &WORD_STACK[i];
+			if (gt->bytes&7){ //set address for this item.
+				int val = getLabelValue(gt); //get the goto's value
+				if (ErrorCode) break;
+				if (gt->bytes&8){
+					if ((unsigned)(val+0x80)>0xFF){ //if it's not already within the correct range
+						val -= gt->org+gt->offset+(gt->bytes&7); //calculate the JR offset byte
+						if ((unsigned)(val+0x80)>0xFF){
+							ErrorCode = "JR offset out of range";
+							ErrorWord = (char*)gt->value;
+							break;
+						}
+					} else {
+						val -= 2; //argument offsets from the start of the opcode.
+					}
+				}
+				ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
+				ti_Write(&val,gt->bytes&3,1,fp); //write in the data
+			} else { //try to set the label's value
+				int val = getLabelValue(gt);
+				if (gt->bytes&0x80){ //pointer to value
+					if (!ErrorCode){
+						gt->bytes&=0x3F;
+						gt->value = val;
+					}
+				}
+			}
+		}
+		if (ErrorCode) {
+			if (!ErrorWord) ErrorWord=(char*)gt->value;
+		}
+	}
+	ti_Close(fp);
 	return !(int)ErrorCode;
 }
 
-int parseLabel(char *buf,ti_var_t fp){
+int parseLabel(char *buf){
 	char c;
 	int i=0;
 	while ((c=buf[++i])&&c!=':'); //skip until the ':'
 	if (c){
 		uint8_t *ptr2;
-		int val,offset;
+		int offset;
+		uint8_t *name;
 		buf[i++]=0; //overwrite the ':'
-		ErrorWord = ptr2 = buf+i+1; //the error will be the value of the label in case something goes wrong
-		offset = ORIGIN+ti_Tell(fp); //the offset in the output program plus the assembly origin
-		if ((c=buf[i])=='='){ //set the label value to an expression
+		ErrorWord = ptr2 = buf+i; //the error will be the value of the label in case something goes wrong
+		offset = ORIGIN+O_FILE_TELL; //the offset in the output program plus the assembly origin
+		if (name=malloc(i)){
 			int len2;
 			uint8_t *ptr3;
-			len2 = strlen(ptr2)+1;
-			if (ptr3=malloc(len2)){ //clone the data so we can keep it
-				memcpy(ptr3,ptr2,len2);
-				val=(int)ptr3;
-				setLabelValue(buf,ptr3);
+			memcpy(name,buf,i);
+			if (*ptr2){
+				len2 = strlen(ptr2)+1;
+				if (ptr3=malloc(len2+1)){ //clone the data so we can keep it
+					memcpy(ptr3+1,ptr2,len2);
+					ptr3[0]=':'; //this can now be handled in getNumber() later in the assembly.
+					CURRENT_BYTES=0x80;
+					defineLabel(name,ptr3);
+					return 1;
+				} else {
+					ErrorCode = MemoryError; //if we can't malloc, there's no memory left. Abort.
+					return 0;
+				}
 			} else {
-				ErrorCode = MemoryError; //if we can't malloc, there's no memory left. Abort.
+				int val;
+				CURRENT_BYTES=0;
+				defineLabel(name,(void*)(ORIGIN+O_FILE_TELL));
+				return 1;
 			}
-		} else if (c=='+'){ //set the label value to the offset plus the following expression
-			setLabelValueValue(buf,val=offset+getNumber(&ptr2,offset,0));
-		} else if (c=='-'){ //set the label value to the offset minus the following expression
-			setLabelValueValue(buf,val=offset-getNumber(&ptr2,offset,0));
-		} else { //set the label value to the offset
-			setLabelValueValue(buf,val=offset);
-			ErrorWord = 0; //there is no value, therefore the old error word is invalid.
+		} else {
+			ErrorCode=MemoryError;
+			return 0;
 		}
-		return val;
 	} else { //this isn't a label define, is it?
 		ErrorWord = buf;
 		return 0;
@@ -463,7 +429,7 @@ void removeLeadingSpaces(uint8_t *buffer){
 void writeArgs(char *buf,int len,ti_var_t fp){
 	int num;
 	char c;
-	CURRENT_BYTES = len+4;
+	CURRENT_BYTES = len;
 	while (c=*buf++){
 		if (c=='"'){
 			while ((c=*buf++)&&c!='"') {
@@ -473,6 +439,21 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 		} else {
 			buf--;
 			num = getNumber(&buf,0,0);
+			if (ErrorCode==UndefinedLabelError){
+				uint8_t *dt;
+				int slen;
+				dt=strchr(buf,',');
+				if (dt) slen = dt-buf;
+				else slen = strlen(buf);
+				if (dt=malloc(slen+1)){
+					memcpy(dt,buf,slen);
+					dt[slen]=0;
+					defineGoto(dt,0);
+					ErrorCode=0;
+				} else {
+					ErrorCode=MemoryError;
+				}
+			}
 			ti_Write(&num,len,1,fp);
 			buf--;
 		}
@@ -484,7 +465,7 @@ label_t *findLabel(const char *name){
 	int i = WORD_SP;
 	while (i--) {
 		data = &WORD_STACK[i];
-		if (!(data->bytes&3)){
+		if (!(data->bytes&7)){
 			if (!strcmp(data->name,name)){
 				return data;
 			}
@@ -501,29 +482,23 @@ int getLabelValue(label_t *lbl){ //get the value of a label
 	return lbl->value; //it's just a plain value
 }
 
-void setLabelValue(const char *name,const char *value_ptr){
-	label_t *data;
-	if (data=findLabel(name)){
-		data->value = (int)value_ptr; //set the pointer to it's value's expression
-		data->bytes = (data->bytes&0x3F)|0x80;
-	}
+void setLabelValue(label_t *data,const char *value_ptr){
+	data->value = (int)value_ptr; //set the pointer to it's value's expression
+	data->bytes = (data->bytes&0x3F)|0x80;
 }
 
-void setLabelValueValue(const char *name,int value){
-	label_t *data;
-	if (data=findLabel(name)){
-		data->value = value;
-		data->bytes &= 0x3F;
-	}
+void setLabelValueValue(label_t *data,int value){
+	data->value = value;
+	data->bytes &= 0x3F;
 }
 
-void defineLabel(const char *name,int val){ //write a new label
+void defineLabel(const char *name,void *val){ //write a new label
 	ti_Seek(0,SEEK_END,gfp);
 	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label.
 	ti_Write(&val,3,1,gfp); //write the value of the label.
-	ti_Write("\xFF\xFF\xFF",3,1,gfp); //write 0xFFFFFF for the file offset.
+	ti_Write(&O_FILE_TELL,3,1,gfp); //write the file offset.
 	ti_Write(&ORIGIN,3,1,gfp); //write the label's origin pointer
-	ti_PutC(0x40,gfp); //write 0x40 to denote that this is a label and is undefined.
+	ti_PutC(CURRENT_BYTES,gfp);//CURRENT_BYTES is used to hold whether the value is a pointer to an expression or just a value.
 	UpdateWordStack();
 }
 
@@ -565,7 +540,14 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 					}
 					free(data);
 					if (data=getArgFromLine(name)){
+						int val;
+						label_t *lbl;
 						defineGoto(data,i); //we need to set this address eventually if it's undefined.
+						val=getLabelValue(lbl=&WORD_STACK[WORD_SP]);
+						if (ErrorCode==UndefinedLabelError){
+							ErrorCode=0;
+							setLabelValueValue(lbl,val);
+						}
 					}
 					return buf4;
 				} else {
@@ -585,10 +567,11 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	ti_var_t fp;
 	uint8_t *ptr;
+	uint8_t *org;
 	unsigned int elen;
 	uint8_t i;
 	if (fp = ti_Open(fname,"r")){
-		ptr = ti_GetDataPtr(fp);
+		ptr = org = ti_GetDataPtr(fp);
 		ti_Close(fp);
 		if (!strcmp(ptr,"BASM3.0 INC")){ //check if it's a valid include file
 			i = cname[0]-0x41;
@@ -596,9 +579,40 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 			while (*ptr){
 				uint8_t *next = ptr+strlen(ptr)+1;
 				if (!strcmp(cname,ptr)){ //found it!
-					return next; //return the value
+					if (*next){ //return the value
+						return next;
+					} else { //this is a special kind of include definition; is inserts code.
+						//instead of just returning the data, we have to process it a bit.
+						//the first two bytes must be null for this kind of definition.
+						//the next two bytes are the length of the relocations table.
+						//the next two bytes are the length of the code.
+						int *data;
+						int code_len,relo_len;
+						int total_len = *((uint16_t*)ptr+2);
+						relo_len = *((uint16_t*)ptr+4);
+						code_len = total_len-(relo_len+6);
+						if (data=malloc(code_len+3)){
+							int use_offset;
+							int *relo_tbl=(int*)next+6;
+							memcpy(data+3,relo_tbl+relo_len,code_len); //write the code
+							do { //add the new offset to all the specified jumps
+								use_offset = relo_tbl[relo_len];
+								data[use_offset]+=ORIGIN+O_FILE_TELL;
+							} while (relo_len);
+							data[0]=code_len<<8;
+							return (uint8_t*)data;
+						} else {
+							ErrorCode=MemoryError;
+							return 0;
+						}
+					}
 				}
-				ptr=next+*next+1; //continue searching
+				//continue searching
+				if (i=*next){
+					ptr=next+*next+1;
+				} else {
+					ptr=next+*((uint16_t*)ptr+2); //this is a special kind of include definition
+				}
 			}
 		}
 	}

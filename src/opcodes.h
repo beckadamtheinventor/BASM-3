@@ -36,7 +36,6 @@ extern ti_var_t gfp;
 extern define_entry_t *internal_define_pointers[27];
 
 extern uint8_t *checkIncludes(const char *name);
-extern void setGotoOffset(const char *name);
 extern void defineGoto(void *val,int offset);
 extern label_t *findLabel(const char *name);
 extern int getLabelValue(label_t *lbl);
@@ -47,7 +46,7 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr);
 bool isRegister(const char *name);
 bool isCondition(const char *name);
 
-int getNumber(char **line,int offset,bool jr);
+int getNumber(char **line,label_t *gt,bool jr);
 int getNumberNoMath(char **line,uint8_t *base);
 int digitValue(char c);
 char *getWord(const char **line);
