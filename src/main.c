@@ -245,7 +245,9 @@ int assemble(const char *inFile, char *outFile){
 						uint8_t *line;
 						upperCaseStr(&buf[2]);
 						if ((unsigned)((c=*buf)-0x41)<27){
-							if (!strncmp(&buf,"FORMAT ",7)){
+							if (!strncmp(&buf,"//",2)){
+								continue;
+							} else if (!strncmp(&buf,"FORMAT ",7)){
 								line = &buf[7];
 								do {
 									if (!strncmp(line,"ASM",3)){
