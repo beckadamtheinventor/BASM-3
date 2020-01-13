@@ -1,0 +1,25 @@
+BASM's main data appvar is a list of opcode names which are stripped of their values, where placeholders are therein placed.
+so the opcode `ld hl,userMem` would become `ld hl,#` during non-direct-match opcode matching.
+The IX/Y opcodes instead turn from `ld hl,(ix+1)` to `ld hl,(ix@)`.
+
+The structure of the opcode data var is very similar to that of the include file, with the major difference being the static entry length.
+Each entry consists of a opcode length byte, 4 bytes opcode bytes, and a flag byte. This is followed by a 12 byte opcode string, with all values replaced with placeholders. This string does not require a null terminator if it is exactly 12 bytes long.
+Example:
+`db 1,EXC9,0,0,0,EX80,"RET",0,0,0,0,0,0,0,0,0`
+
+
+The header of this file must begin with `BASM3-OPCODES` followed by a null.
+The letter jump table begins after the 32 byte header and is the same as include files.
+
+
+The flag byte of the opcode is very important for the correct placement and value of arguments.
+The lower 3 bits of this flag byte is the offset at which the opcode's argument should go.
+
+if bit 3 is set, the opcode has an offset argument, such as `ld hl,(IX@)`.
+if bit 4 is set, the opcode has a long argument, such as `ld hl,#`.
+if bit 5 is set, the opcode has a byte argument, such as `ld a,#`.
+if bit 6 is set, the opcode's argument is relative to the opcode's address.
+if bit 7 is set, the opcode does not require any arguments. This also means the opcode line does not need to be preparsed before comparison.
+
+IMPORTANT: Entries with bit 7 set MUST come before the entries with bit 7 unset.
+

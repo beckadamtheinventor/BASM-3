@@ -1,0 +1,39 @@
+BASM include files are essentially a list of constant names followed by their values.
+
+32 byte header starting with:
+`db "BASM3.0 INCLUDE",0`
+The rest of that header can be used for a description or such.
+
+27*2 byte letter jump table to the file offset of each sequence of constants starting with the letter
+Ex. `dw 55 ;tbl_A`
+
+constant and value entries must be in all caps.
+entry example:
+```
+db "USERMEM",0,3
+dl EXD1A881
+```
+
+There is also a second kind of value, which essentially pastes code into your program from the include file.
+The relocations table is necessary to move the addresses used here from their offset in the code into the offset of your program.
+The following example is written in BASM assembly source.
+```
+entry:
+	db "ZERO HLU",0,EXFF
+	dw .len,.reloLen
+.relocations:
+	dw .a1,.a2
+.reloLen:-.relocations
+ORIGIN 0
+	ld (.temp),hl
+.a1:-3
+	xor a,a
+	ld (.temp+2),a
+.a2:-3
+	jr .endcode
+.temp:
+	dl 0
+.endcode:
+.len:-entry
+origin πPOP
+```

@@ -56,10 +56,10 @@ RET
 
 # Numbers in BASM:
 Any opcode/word/define that requires arguments can take any expression that resolves to a static value. This is what the "Filling addresses" step is for. Expressions are standard, but do not follow order of operations. The order is linearily forward.
-Immediate numeric values can be any of the 4 common number bases. Decimal (default), Hexidecimal, Octal, and Binary.
-Number bases are denoted with the scientific 'E'.
+Immediate numeric values can be any of the 4 common number bases. Decimal (default), Hexadecimal, Octal, and Binary.
+Number bases are denoted with the exponentation 'E'.
 `669` -> Decimal 669.
-`EX0ff` -> Hexidecimal FF.
+`EX0ff` -> Hexadecimal FF.
 `EO007` -> Octal 7.
 `EB0011` -> Binary 11.
 `ED996` -> Decimal 996.
