@@ -34,7 +34,7 @@ DB 2
 DB "BASM-3.0A Example program",0
 //This is a comment
 //Lbl is an alternative label define. Useful for jumping around the program using Cesium's in-editor Label Goto feature
-//Include appvar TI84PCEG with the namespace TIθ
+//Include appvar TI84PCEG with the prefix TIθ
 INCLUDE "TI84PCEG" TIθ
 Lbl MAIN:
 CALL TIθRUNINDICOFF
