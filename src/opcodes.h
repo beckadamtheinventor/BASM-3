@@ -44,6 +44,9 @@ extern void defineGoto(void *val,int offset);
 extern label_t *findLabel(const char *name);
 extern int getLabelValue(label_t *lbl);
 
+extern void stack_push(int val);
+extern int stack_pop(void);
+
 char *processOpcodeLine(const char *name);
 char *getArgFromLine(const char *line);
 uint8_t *checkInternal(const char *line,define_entry_t **endptr);

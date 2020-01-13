@@ -60,12 +60,13 @@ char *ErrorCode = 0;
 char *ErrorWord = 0;
 unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE,NAMESPACE_LEN;
 char *NAMESPACE;
+unsigned int STACK_SP;
+int *STACK;
 
 ti_var_t gfp;
 
 include_entry_t first_include;
 include_entry_t *last_include = &first_include;
-
 
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
 void removeLeadingSpaces(uint8_t *buffer);
@@ -89,6 +90,9 @@ void printAt(const char *str,uint8_t x,uint8_t y);
 void printXAt(const char *str,int amt,uint8_t x,uint8_t y);
 char *upperCaseStr(char *str);
 sk_key_t pause(void);
+void stack_push(int val);
+int stack_pop(void);
+
 
 extern int isNumber(const char *line);
 
@@ -119,27 +123,32 @@ void main(void){
 					internal_define_pointers[l] = (define_entry_t*)(org + *ptr++);
 				}
 				ti_Close(fp2);
-				gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
-				if (assemble(&inFile,&outFile)){
-					if (outFile[0]&&outFile[9]){
-						fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
-						fp = ti_OpenVar(&outFile,"w",outFile[9]);
-						ti_Write(ti_GetDataPtr(fp2),O_FILE_SIZE,1,fp);
-						if (outFile[10]&1){
-							ti_SetArchiveStatus(1,fp);
+				if (STACK=malloc(512*3)){
+					STACK_SP=0;
+					gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
+					if (assemble(&inFile,&outFile)){
+						if (outFile[0]&&outFile[9]){
+							fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
+							fp = ti_OpenVar(&outFile,"w",outFile[9]);
+							ti_Write(ti_GetDataPtr(fp2),O_FILE_SIZE,1,fp);
+							if (outFile[10]&1){
+								ti_SetArchiveStatus(1,fp);
+							}
+							ti_Close(fp);
+							ti_Close(fp2);
+							printAt("Assembled Successfuly!",0,4);
+							printAt("Output file:",0,5);
+							printAt(&outFile,12,5);
+						} else {
+							printAt("Output file not specified.",0,8);
 						}
-						ti_Close(fp);
-						ti_Close(fp2);
-						printAt("Assembled Successfuly!",0,4);
-						printAt("Output file:",0,5);
-						printAt(&outFile,12,5);
 					} else {
-						printAt("Output file not specified.",0,8);
+						error(ErrorCode,ErrorWord);
 					}
+					ti_Close(gfp);
 				} else {
-					error(ErrorCode,ErrorWord);
+					error(MemoryError,"");
 				}
-				ti_Close(gfp);
 			}
 		} else {
 			printAt("Missing BASMdata.8xv",0,0);
@@ -273,7 +282,8 @@ int assemble(const char *inFile, char *outFile){
 							if (ErrorCode) break;
 						} else if (!strncmp(&buf,"ORIGIN ",7)){
 							line = &buf[7];
-							ORIGIN=getNumber(&line,0,0);
+							stack_push(ORIGIN+2);
+							ORIGIN=getNumber(&line,0,0)-2;
 						} else if (!strncmp(&buf,"INCLUDE ",8)){
 							line = &buf[8];
 							if (*line=='"'){
@@ -352,7 +362,7 @@ int assemble(const char *inFile, char *outFile){
 							break;
 						}
 					} else {
-						val -= 2; //argument offsets from the start of the opcode.
+						val -= gt->bytes&7; //argument offsets from the start of the opcode.
 					}
 				}
 				ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
@@ -629,8 +639,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 							memcpy(data+3,relo_tbl+relo_len,code_len); //write the code
 							do { //add the new offset to all the specified jumps
 								use_offset = relo_tbl[relo_len];
-								data[use_offset]+=ORIGIN+O_FILE_TELL;
-							} while (relo_len);
+								*(data+use_offset)+=ORIGIN+O_FILE_TELL;
+							} while (relo_len--);
 							data[0]=code_len<<8;
 							return (uint8_t*)data;
 						} else {
@@ -750,4 +760,11 @@ sk_key_t pause(void){
 	sk_key_t k;
 	while (!(k=os_GetCSC()));
 	return k;
+}
+
+void stack_push(int val){
+	STACK[STACK_SP++]=val;
+}
+int stack_pop(void){
+	return STACK[--STACK_SP];
 }

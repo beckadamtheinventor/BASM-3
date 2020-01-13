@@ -15,7 +15,7 @@
 uint8_t buffer[buffer_len];
 
 #define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.')
-
+#define isAlpha(c) ((unsigned)(c-0x41)<27||c=='.')
 
 char *processOpcodeLine(const char *name){
 	unsigned char c;
@@ -295,52 +295,51 @@ int getNumberNoMath(char **line,uint8_t *base){
 	uint8_t a;
 	bool neg=0;
 	number = 0;
-	if (((unsigned)((c=*(*line))-0x30)>=10)&&c){
+	if (isAlpha(**line)){
 		uint8_t *data;
 		char *oldline;
 		char *nbuf;
 		label_t *gt;
 		oldline = *line;
-		if ((c=**line)==0x1A){
-			neg=1; (*line)++;
-		} else if (c!=0x1B){
-			if (nbuf=getWord(line)){
-				if (*nbuf=='.') {
-					uint8_t *tptr;
-					int nlen=strlen(nbuf)+1;
-					if (tptr=malloc(NAMESPACE_LEN+nlen)){
-						memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
-						memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);
-						free(nbuf);
-						nbuf=tptr;
-					} else {
-						ErrorCode=MemoryError;
-					}
-					if (gt=findLabel(nbuf)){
-						free(nbuf);
-						number = getLabelValue(gt);
-					}
+		if (nbuf=getWord(line)){
+			if (*nbuf=='.') {
+				uint8_t *tptr;
+				int nlen=strlen(nbuf)+1;
+				if (tptr=malloc(NAMESPACE_LEN+nlen)){
+					memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
+					memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);
+					free(nbuf);
+					nbuf=tptr;
 				} else {
-					if (data=checkIncludes(nbuf)){
-						free(nbuf);
-						if (data[0]){
-							memcpy(&number,data+1,data[0]);
-						}
-					} else if (gt=findLabel(nbuf)){
-						free(nbuf);
-						number = getLabelValue(gt);
-					} else {
-						ErrorCode = UndefinedLabelError;
-					}
+					ErrorCode=MemoryError;
+				}
+				if (gt=findLabel(nbuf)){
+					free(nbuf);
+					number = getLabelValue(gt);
 				}
 			} else {
-				ErrorCode = MemoryError;
+				if (data=checkIncludes(nbuf)){
+					free(nbuf);
+					if (data[0]){
+						memcpy(&number,data+1,data[0]);
+					}
+				} else if (gt=findLabel(nbuf)){
+					free(nbuf);
+					number = getLabelValue(gt);
+				} else {
+					ErrorCode = UndefinedLabelError;
+				}
 			}
-			return number;
+		} else {
+			ErrorCode = MemoryError;
 		}
+		return number;
+	}
+	if (**line==0x1A){
+		neg=1; (*line)++;
 	}
 	while (c=*(*line)++){
-		if (c==0x1B) { //scientific 'E'
+		if (c==0x1B) { //scientific 'E'. Number base switching
 			c=*(*line)++;
 			if (c=='X'){
 				*base = 16;
@@ -354,7 +353,20 @@ int getNumberNoMath(char **line,uint8_t *base){
 				ErrorCode = "Invalid Number Base";
 				return 0;
 			}
-		} else if ((a=digitValue(c))<(*base)) {
+		} else if ((c&0xFF)==0xC4){ //pi. Preprocessor commands. Without the bitmask, c is 0xffffc4???
+			uint8_t *ptr=*line;
+			if (!strncmp(ptr,"PUSH ",5)){ //push the following to the stack and set the current number
+				*line=ptr+5;
+				stack_push(number = getNumberNoMath(line,base));
+			} else if (!strncmp(ptr,"POP",3)){ //pop the stack into the current number
+				*line=ptr+3;
+				number = stack_pop();
+			} else { //otherwise it's not implemented
+				ErrorCode="Unimplemented preprocessor";
+				ErrorWord=*line;
+				return 0;
+			}
+		} else if ((a=digitValue(c))<(*base)) { //if we're in the number base's range
 			number = number*(*base) + a;
 		} else if (c!=' '){
 			break;
