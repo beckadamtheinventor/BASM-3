@@ -479,7 +479,7 @@ label_t *findLabel(const char *name){
 int getLabelValue(label_t *lbl){ //get the value of a label
 	if (lbl->bytes&0x80){ //it's a pointer to the value
 		void *ptr = (void*)lbl->value;
-		return getNumber(&ptr,0,0); //return the computed value
+		return getNumber(&ptr,lbl,0); //return the computed value
 	}
 	return lbl->value; //it's just a plain value
 }
