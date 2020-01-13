@@ -301,41 +301,46 @@ int getNumberNoMath(char **line,uint8_t *base){
 		char *nbuf;
 		label_t *gt;
 		oldline = *line;
-		if (nbuf=getWord(line)){
-			if (*nbuf=='.') {
-				uint8_t *tptr;
-				int nlen=strlen(nbuf)+1;
-				if (tptr=malloc(NAMESPACE_LEN+nlen)){
-					memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
-					memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);
-					free(nbuf);
-					nbuf=tptr;
+		if ((c=**line)==0x1A){
+			neg=1; (*line)++;
+		} else if (c!=0x1B){
+			if (nbuf=getWord(line)){
+				if (*nbuf=='.') {
+					uint8_t *tptr;
+					int nlen=strlen(nbuf)+1;
+					if (tptr=malloc(NAMESPACE_LEN+nlen)){
+						memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
+						memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);
+						free(nbuf);
+						nbuf=tptr;
+					} else {
+						ErrorCode=MemoryError;
+					}
+					if (gt=findLabel(nbuf)){
+						free(nbuf);
+						number = getLabelValue(gt);
+					}
 				} else {
-					ErrorCode=MemoryError;
-				}
-			}
-			if (data=checkIncludes(nbuf)){
-				free(nbuf);
-				if (data[0]){
-					memcpy(&number,data+1,data[0]);
-				}
-			} else if (gt=findLabel(nbuf)){
-				free(nbuf);
-				if (gt->bytes&0x40){
-					ErrorCode = UndefinedLabelError;
-				} else {
-					number = getLabelValue(gt);
+					if (data=checkIncludes(nbuf)){
+						free(nbuf);
+						if (data[0]){
+							memcpy(&number,data+1,data[0]);
+						}
+					} else if (gt=findLabel(nbuf)){
+						free(nbuf);
+						number = getLabelValue(gt);
+					} else {
+						ErrorCode = UndefinedLabelError;
+					}
 				}
 			} else {
-				ErrorCode = UndefinedLabelError;
+				ErrorCode = MemoryError;
 			}
-		} else {
-			ErrorCode = MemoryError;
+			return number;
 		}
-		return number;
 	}
 	while (c=*(*line)++){
-		if (c=='.') {
+		if (c==0x1B) { //scientific 'E'
 			c=*(*line)++;
 			if (c=='X'){
 				*base = 16;
@@ -349,8 +354,6 @@ int getNumberNoMath(char **line,uint8_t *base){
 				ErrorCode = "Invalid Number Base";
 				return 0;
 			}
-		} else if (c=='-'){
-			neg=1;
 		} else if ((a=digitValue(c))<(*base)) {
 			number = number*(*base) + a;
 		} else if (c!=' '){

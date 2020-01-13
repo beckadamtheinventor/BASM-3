@@ -468,7 +468,8 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			}
 			buf++;
 		} else {
-			uint8_t *ptr=--buf;
+			uint8_t *ptr;
+			buf--; ptr=buf;
 			num = getNumber(&buf,0,0);
 			if (ErrorCode==UndefinedLabelError){
 				uint8_t *dt;
