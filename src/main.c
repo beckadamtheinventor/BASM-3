@@ -38,6 +38,8 @@ const char *TEMP_FILE_2 = "_BASMtm2";
 const char *MemoryError = "Insufficient Memory";
 const char *UndefinedLabelError = "Undefined word/label";
 const char *NumberFormatError = "Number format Error";
+const char *SyntaxError = "Syntax Error";
+const char *NamespaceError = "No namespace";
 const char *UserBreakError = "Cancel. Abort.";
 const char *UserBreakWord = "\\o/";
 
@@ -56,7 +58,8 @@ int DATA_SP = 0;
 int WORD_SP;
 char *ErrorCode = 0;
 char *ErrorWord = 0;
-unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE;
+unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE,NAMESPACE_LEN;
+char *NAMESPACE;
 
 ti_var_t gfp;
 
@@ -66,7 +69,7 @@ include_entry_t *last_include = &first_include;
 
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
 void removeLeadingSpaces(uint8_t *buffer);
-int parseLabel(char *buf);
+int parseLabel(char *buf,bool namespace);
 void writeArgs(char *buf,int len,ti_var_t fp);
 void setLabelValue(label_t *data,const char *value_ptr);
 void setLabelValueValue(label_t *data,int value);
@@ -156,6 +159,9 @@ int assemble(const char *inFile, char *outFile){
 	int i,len;
 	uint8_t c;
 
+	NAMESPACE_LEN=0;
+	NAMESPACE=0;
+
 	if (!(fp = ti_OpenVar(inFile,"r",TI_PRGM_TYPE))){
 		ErrorCode = "Input file not found";
 		ErrorWord = inFile;
@@ -203,6 +209,24 @@ int assemble(const char *inFile, char *outFile){
 					upperCaseStr(&buf[2]);
 					if (!strncmp(&buf,"//",2)){
 						continue;
+					} else if (*buf=='.'){
+						if (NAMESPACE){
+							uint8_t *cname;
+							uint8_t *word;
+							uint8_t *ptr = strchr(&buf,':');
+							if (ptr){
+								int len = strlen(&buf)+1;
+								if (cname=malloc(NAMESPACE_LEN+len)){
+									memcpy(cname,NAMESPACE,NAMESPACE_LEN);
+									memcpy(cname+NAMESPACE_LEN,&buf,len);
+									if (parseLabel(cname,0)) ErrorCode=0;
+								}
+							} else {
+								ErrorCode=SyntaxError;
+							}
+						} else {
+							ErrorCode=NamespaceError;
+						}
 					} else if ((unsigned)((c=*buf)-0x41)<27){
 						if (!strncmp(&buf,"FORMAT ",7)){
 							line = &buf[7];
@@ -277,8 +301,8 @@ int assemble(const char *inFile, char *outFile){
 								ErrorCode = "Invalid argument";
 							}
 						} else if (!strncmp(&buf,"LBL ",4)){
-							if (parseLabel(&buf[4])) ErrorCode = 0;
-						} else if (parseLabel(&buf)){
+							if (parseLabel(&buf[4],1)) ErrorCode = 0;
+						} else if (parseLabel(&buf,1)){
 							ErrorCode = 0;
 						} else if (edata=getEmitData(&buf)){
 							if (!*edata){
@@ -290,7 +314,7 @@ int assemble(const char *inFile, char *outFile){
 							ErrorCode = UndefinedLabelError;
 						}
 					} else {
-						if (!ErrorCode) ErrorCode = "Syntax";
+						if (!ErrorCode) ErrorCode = SyntaxError;
 					}
 				}
 			} else {
@@ -350,14 +374,14 @@ int assemble(const char *inFile, char *outFile){
 	return !(int)ErrorCode;
 }
 
-int parseLabel(char *buf){
+int parseLabel(char *buf,bool namespace){
 	char c;
 	int i=0;
 	while ((c=buf[++i])&&c!=':'); //skip until the ':'
-	if (c){
+	if (c||(!namespace)){
 		uint8_t *ptr2;
-		int offset;
 		uint8_t *name;
+		int offset;
 		buf[i++]=0; //overwrite the ':'
 		ErrorWord = ptr2 = buf+i; //the error will be the value of the label in case something goes wrong
 		offset = ORIGIN+O_FILE_TELL; //the offset in the output program plus the assembly origin
@@ -381,6 +405,10 @@ int parseLabel(char *buf){
 				int val;
 				CURRENT_BYTES=0;
 				defineLabel(name,(void*)(ORIGIN+O_FILE_TELL));
+				if (namespace) { //set the namespace
+					NAMESPACE = name;
+					NAMESPACE_LEN = strlen(name);
+				} 
 				return 1;
 			}
 		} else {
@@ -429,17 +457,16 @@ void removeLeadingSpaces(uint8_t *buffer){
 
 void writeArgs(char *buf,int len,ti_var_t fp){
 	int num;
-	char c;
+	int c;
 	CURRENT_BYTES = len;
 	while (c=*buf++){
 		if (c=='"'){
 			while ((c=*buf++)&&c!='"') {
-				ti_PutC(c,fp);
+				ti_Write(&c,len,1,fp);
 			}
 			buf++;
 		} else {
-			uint8_t *ptr=buf;
-			buf--;
+			uint8_t *ptr=--buf;
 			num = getNumber(&buf,0,0);
 			if (ErrorCode==UndefinedLabelError){
 				uint8_t *dt;

@@ -295,13 +295,25 @@ int getNumberNoMath(char **line,uint8_t *base){
 	uint8_t a;
 	bool neg=0;
 	number = 0;
-	if (((unsigned)((c=*(*line))-0x30)>=10)&&c!='.'&&c){
+	if (((unsigned)((c=*(*line))-0x30)>=10)&&c){
 		uint8_t *data;
 		char *oldline;
 		char *nbuf;
 		label_t *gt;
 		oldline = *line;
 		if (nbuf=getWord(line)){
+			if (*nbuf=='.') {
+				uint8_t *tptr;
+				int nlen=strlen(nbuf);
+				if (tptr=malloc(NAMESPACE_LEN+nlen)){
+					memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
+					memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);
+					free(nbuf);
+					nbuf=tptr;
+				} else {
+					ErrorCode=MemoryError;
+				}
+			}
 			if (data=checkIncludes(nbuf)){
 				free(nbuf);
 				if (data[0]){
@@ -366,13 +378,15 @@ char *getWord(const char **line){
 	int amt;
 	char *ptr = *line;
 	do c=*ptr++; while (isAlphaNumeric(c)); ptr--;
-	if (rv=malloc((amt=(int)(ptr-*line))+1)){
-		memcpy(rv,*line,amt);
-		rv[amt] = 0;
-	} else {
-		if (amt){
+	if (amt){
+		if (rv=malloc((amt=(int)(ptr-*line))+1)){
+			memcpy(rv,*line,amt);
+			rv[amt] = 0;
+		} else {
 			ErrorCode = MemoryError;
+			return 0;
 		}
+	} else {
 		return 0;
 	}
 	*line = ptr;

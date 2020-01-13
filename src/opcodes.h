@@ -33,6 +33,9 @@ extern unsigned int ORIGIN;
 extern unsigned int O_FILE_TELL;
 extern uint8_t CURRENT_BYTES;
 extern ti_var_t gfp;
+extern char *NAMESPACE;
+extern unsigned int NAMESPACE_LEN;
+	
 
 extern define_entry_t *internal_define_pointers[27];
 
