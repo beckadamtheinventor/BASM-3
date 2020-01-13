@@ -304,7 +304,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 		if (nbuf=getWord(line)){
 			if (*nbuf=='.') {
 				uint8_t *tptr;
-				int nlen=strlen(nbuf);
+				int nlen=strlen(nbuf)+1;
 				if (tptr=malloc(NAMESPACE_LEN+nlen)){
 					memcpy(tptr,NAMESPACE,NAMESPACE_LEN);
 					memcpy(tptr+NAMESPACE_LEN,nbuf,nlen);

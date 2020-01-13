@@ -215,10 +215,11 @@ int assemble(const char *inFile, char *outFile){
 							uint8_t *word;
 							uint8_t *ptr = strchr(&buf,':');
 							if (ptr){
-								int len = strlen(&buf)+1;
-								if (cname=malloc(NAMESPACE_LEN+len)){
+								int len = strlen(&buf);
+								if (cname=malloc(NAMESPACE_LEN+len+1)){
 									memcpy(cname,NAMESPACE,NAMESPACE_LEN);
 									memcpy(cname+NAMESPACE_LEN,&buf,len);
+									cname[NAMESPACE_LEN+len]=0;
 									if (parseLabel(cname,0)) ErrorCode=0;
 								}
 							} else {
@@ -390,9 +391,10 @@ int parseLabel(char *buf,bool namespace){
 			uint8_t *ptr3;
 			memcpy(name,buf,i);
 			if (*ptr2){
-				len2 = strlen(ptr2)+1;
-				if (ptr3=malloc(len2+1)){ //clone the data so we can keep it
+				len2 = strlen(ptr2);
+				if (ptr3=malloc(len2+2)){ //clone the data so we can keep it
 					memcpy(ptr3+1,ptr2,len2);
+					ptr3[len2+1]=0;
 					ptr3[0]=':'; //this can now be handled in getNumber() later in the assembly.
 					CURRENT_BYTES=0x80;
 					defineLabel(name,ptr3);
