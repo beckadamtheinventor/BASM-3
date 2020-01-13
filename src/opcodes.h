@@ -23,6 +23,7 @@ typedef struct _label_{
 
 extern const char *MemoryError;
 extern const char *UndefinedLabelError;
+extern const char *NumberFormatError;
 
 extern uint8_t ADDR_BYTES;
 extern char *ErrorCode;

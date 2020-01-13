@@ -37,6 +37,7 @@ const char *TEMP_FILE = "_BASMtmp";
 const char *TEMP_FILE_2 = "_BASMtm2";
 const char *MemoryError = "Insufficient Memory";
 const char *UndefinedLabelError = "Undefined word/label";
+const char *NumberFormatError = "Number format Error";
 const char *UserBreakError = "Cancel. Abort.";
 const char *UserBreakWord = "\\o/";
 
@@ -437,16 +438,17 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			}
 			buf++;
 		} else {
+			uint8_t *ptr=buf;
 			buf--;
 			num = getNumber(&buf,0,0);
 			if (ErrorCode==UndefinedLabelError){
 				uint8_t *dt;
 				int slen;
-				dt=strchr(buf,',');
-				if (dt) slen = dt-buf;
-				else slen = strlen(buf);
+				dt=strchr(ptr,',');
+				if (dt) slen = dt-ptr;
+				else slen = strlen(ptr);
 				if (dt=malloc(slen+1)){
-					memcpy(dt,buf,slen);
+					memcpy(dt,ptr,slen);
 					dt[slen]=0;
 					defineGoto(dt,0);
 					ErrorCode=0;

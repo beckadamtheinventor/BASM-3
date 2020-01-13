@@ -209,8 +209,11 @@ int getNumber(char **line,label_t *gt,bool jr){
 			number = gt->offset+gt->org + getNumberNoMath(line,&base);
 		} else if (c=='='){
 			number = getNumberNoMath(line,&base);
-		} else {
+		} else if (!c){
 			return gt->offset+gt->org;
+		} else {
+			ErrorCode = NumberFormatError;
+			return 0;
 		}
 	} else {
 		number = getNumberNoMath(line,&base);
@@ -259,7 +262,7 @@ int getNumber(char **line,label_t *gt,bool jr){
 			} else if (c2=='O'){
 				number = number || getNumberNoMath(line,&base);
 			} else if (c2=='X'){
-				number = !(number && getNumberNoMath(line,&base));
+				number = ((number>0) ^ (getNumberNoMath(line,&base)>0));
 			} else if (c2=='+'){
 				number = number & getNumberNoMath(line,&base);
 			} else if (c2=='-') {
@@ -276,9 +279,12 @@ int getNumber(char **line,label_t *gt,bool jr){
 			(*line)++;
 			return number;
 		} else {
-			ErrorCode = "Number format Error";
+			ErrorCode = NumberFormatError;
 		}
-		if (ErrorCode) return 0;
+		if (ErrorCode) {
+			ErrorWord = (*line)-1;
+			return 0;
+		}
 	}
 	return number;
 }
