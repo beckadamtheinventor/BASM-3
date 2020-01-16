@@ -71,6 +71,12 @@ Number bases are denoted with the exponentation 'E'.
 `ED996` -> Decimal 996.
 
 
+# Offset numbers in BASM:
+For any opcode/word/define that requires an argument you may use `+X` and `-X` to denote that the number is an offset of the current executing address.
+Ex:
+`JR +3`
+
+
 # Labels in BASM:
 Any alphanumeric text, including dot '.' and theta 'θ', starting with a letter, followed by a colon ':' will define a label.
 You may also start this with the `Lbl ` token (or the letters, but that would defeat the purpose) so that you may use Cesium's in-editor label jumping feature.
