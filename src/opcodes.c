@@ -14,7 +14,7 @@
 #define buffer_len 16
 uint8_t buffer[buffer_len];
 
-#define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.'||c==0x1A||c==0x1B)
+#define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.'||c==0x1A||c==0x1B||c=='+'||c=='-')
 #define isAlpha(c) ((unsigned)(c-0x41)<27||c=='.')
 
 char *processOpcodeLine(const char *name){
@@ -203,19 +203,29 @@ int getNumber(char **line,label_t *gt,bool jr){
 	base=10;
 	ErrorCode=0;
 	oldline = *line;
-	if (**line==':'&&gt){
-		(*line)++;
-		if ((c=*(*line)++)=='-'){
-			number = gt->org - getNumberNoMath(line,&base);
-		} else if (c=='+'){
+	if (gt){
+		if (**line==':'){
+			(*line)++;
+			if ((c=*(*line)++)=='-'){
+				number = gt->org - getNumberNoMath(line,&base);
+			} else if (c=='+'){
+				number = gt->org + getNumberNoMath(line,&base);
+			} else if (c=='='){
+				number = getNumberNoMath(line,&base);
+			} else {
+				ErrorCode = NumberFormatError;
+				return 0;
+			}
+		} else if ((c=*(*line)++)=='+'){
 			number = gt->org + getNumberNoMath(line,&base);
-		} else if (c=='='){
-			number = getNumberNoMath(line,&base);
+		} else if (c=='-'){
+			number = gt->org - getNumberNoMath(line,&base);
 		} else {
-			ErrorCode = NumberFormatError;
-			return 0;
+			(*line)--;
+			goto defaultnumber;
 		}
 	} else {
+		defaultnumber:;
 		number = getNumberNoMath(line,&base);
 	}
 	if (jr) CURRENT_BYTES|=F_OFFSET_VALUE;

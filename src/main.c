@@ -704,6 +704,7 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 	uint8_t *ptr;
 	uint8_t *org;
 	uint8_t i;
+	ErrorCode=0;
 	if (fp = ti_Open(fname,"r")){
 		ptr = org = ti_GetDataPtr(fp);
 		ti_Close(fp);
@@ -712,8 +713,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 			ptr+=*((uint16_t*)(ptr+32+i*2)); //get the pointer to the list of constants starting with the first letter
 			while (*ptr){
 				int total_len;
-				uint8_t *next;
-				total_len+=*(next=ptr+(total_len=strlen(ptr)+1))+1;
+				uint8_t *next=ptr+(total_len=strlen(ptr)+1);
+				total_len+=*next+1;
 				if (!strcmp(ptr,cname)){ //found it!
 					if (*next){ //return the value
 						return next;
