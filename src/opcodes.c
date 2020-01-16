@@ -14,7 +14,7 @@
 #define buffer_len 16
 uint8_t buffer[buffer_len];
 
-#define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.'||c==0x1A||c==0x1B||c=='+'||c=='-')
+#define isAlphaNumeric(c) ((unsigned)(c-0x41)<27||(unsigned)(c-0x30)<10||c=='.')
 #define isAlpha(c) ((unsigned)(c-0x41)<27||c=='.')
 
 char *processOpcodeLine(const char *name){
@@ -65,7 +65,8 @@ char *processOpcodeLine(const char *name){
 					if ((c=*name)!=','){
 						*ptr++=c; name++;
 					}
-				} else if (isAlphaNumeric(c)) { //if it's an alphanumeric constant we need to skip it in order to match the opcode.
+				} else if (isAlphaNumeric(c)||c==0x1A||c==0x1B||c=='+'||c=='-') {
+						//if it's an alphanumeric constant we need to skip it in order to match the opcode.
 					if (w) *ptr++='#'; //write the placeholder
 					loopexpression:;
 					do c=*name++; while (isAlphaNumeric(c)); //skip until it's not
@@ -342,7 +343,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 			} else {
 				if (data=checkIncludes(nbuf)){
 					if (*data){
-						memcpy(&number,data+1,*data);
+						number = *((int*)(data+1));
 					}
 				} else if (gt=findLabel(nbuf)){
 					number = getLabelValue(gt);
@@ -410,12 +411,6 @@ int getNumberNoMath(char **line,uint8_t *base){
 						printXAt(getNumber(line,&temp_gt,0),26,0,8);
 						(*line)--;
 					}
-				} else if (!strncmp(ptr,".OFFSET",7)){
-					number = O_FILE_TELL;
-					*line=ptr+7;
-				} else if (!strncmp(ptr,".HERE",5)){
-					number = ORIGIN;
-					*line=ptr+5;
 				} else { //otherwise it's not implemented
 					ErrorCode="Unimplemented preprocessor";
 					ErrorWord=*line;
