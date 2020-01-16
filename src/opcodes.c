@@ -23,7 +23,7 @@ char *processOpcodeLine(const char *name){
 	char *ptr;
 	int len;
 	bool w=1;
-	if (rv=ptr=malloc(len=strlen(name)+1)){
+	if (rv=ptr=malloc(len=strlen(name)+3)){
 		memset(ptr,0,len);
 		while ((c=*name++)&&c!=' ') *ptr++=c;
 		*ptr++=c;
