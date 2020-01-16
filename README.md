@@ -1,27 +1,33 @@
 # BASM-3
 Beck's Assembler v3 - "On-calc" Assembler for the TI84+CE family of graphing calculators.
 
+
 # TODO
+- Fix local label `.`
 - wring out bugs as they appear
 
-# How-to
 
+# How-to
 Send `BASM.8xp`, and `BASMdata.8xv` to the calculator.
 Type in the program name you wish to compile from the TI-OS homescreen like so:
 `"PROGRAM"`
 Press enter, then run BASM.
 If all is successful, you should see the output binary. Otherwise BASM will tell you what went wrong.
 
+
 # includes
 The rest of the appvars included with BASM are include files.
 `include "TI84PCEG" TIθ`
 This will allow your program to reference the standard ti84pce.inc defines, using the namespace `TIθ`
+
 
 # include files and their contents
 `TI84PCEG.8xv` -> Most of ti84pce.inc
 `TIOSRTNS.8xv` -> OS routine calls
 `TIOSRAMA.8xv` -> RAM areas and ports
 `TIOSFLAG.8xv` -> OS Flags
+`TIOSKBEQ.8xv` -> Keyboard scan codes
+
 
 
 The opcodes of BASM are the same as when using "eZ80.inc" with fasmg.
@@ -91,7 +97,15 @@ All labels, words, and opcodes are case-insensitive.
 `DL 0,100,.XFF0010` -> Write longs (3 byte expressions) into the output file.
 
 
-# BASM preprocessors
+# BASM code control:
+`SECTION` -> starts a new code section. This allows the current code execution address to advance as the code is written to the output.
+`SECTION AT addr` -> start a new code section and set it's code origin to addr.
+`END SECTION` -> End a code section.
+`VIRTUAL` -> start a new virtual code section. This does not affect the current code execution address as this code is written to the file. Useful for stubs that can be copied into their execution base address at runtime.
+`VIRTUAL AT addr` -> Start a new virtual code section and set it's code origin to addr.
+
+
+# BASM preprocessors:
 Any numeric expression can contain a preprocessor.
 These words must start with the 'pi' character.
 `πPUSH` -> push the following value to the stack, also sets the current value in the expression to the following value.
@@ -99,8 +113,11 @@ Ex. `1 + πPUSH 1` -> push 1 to the stack, add 1+1, return 2.
 `πPOP` -> pop the stack into the current value in the expression.
 Ex. `1 + πPOP` -> pop the stack and add 1, return the result.
 
-These are very useful for setting and restoring the `ORIGIN` variable.
+These can be useful for setting and restoring the `ORIGIN` variable.
 Ex. `ORIGIN 0` -> push the current origin, set the origin to 0.
     `//some code`
     `ORIGIN πPOP` -> pop the stack to set the origin to what it was before.
+
+`πECHO` -> Print the following numeric value
+`πPUTS` -> Print the following string value
 

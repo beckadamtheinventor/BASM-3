@@ -57,7 +57,7 @@ with open("obj/"+fname+".bin","wb") as f:
 	s=b"BASM3.0 INC"
 	f.write(s)
 	f.write(bytes([0]*(32-len(s))))
-	tbloff = f.tell()
+	tbloff = 32
 	f.write(bytes([0]*54))
 	tbl = []
 	for letter in letters.keys():
@@ -65,12 +65,12 @@ with open("obj/"+fname+".bin","wb") as f:
 		for word in letters[letter]:
 			f.write(bytes(word[0],'UTF-8'))
 			arg=[word[1]&0xFF,(word[1]//0x100)&0xFF,(word[1]//0x10000)&0xFF]
-			a=3
+			a=0
 			for i in range(3):
-				if arg[-i]:
+				if not arg[i]:
 					break
 				else:
-					a-=1
+					a+=1
 			f.write(bytes([0,a]+arg[:a]))
 		f.write(bytes([0]))
 
