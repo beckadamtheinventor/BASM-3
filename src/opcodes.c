@@ -120,7 +120,7 @@ char *getArgFromLine(const char *line){
 						line++;
 					}
 					line++;
-				} else if (isAlphaNumeric(c)){
+				} else if (isAlphaNumeric(c)||c==0x1A||c==0x1B||c=='+'||c=='-'){
 					break;
 				} else {
 					if (c=='(') cc=')';
