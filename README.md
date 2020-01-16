@@ -103,7 +103,7 @@ All labels, words, and opcodes are case-insensitive.
 `END SECTION` -> End a code section.
 `VIRTUAL` -> start a new virtual code section. This does not affect the current code execution address as this code is written to the file. Useful for stubs that can be copied into their execution base address at runtime.
 `VIRTUAL AT addr` -> Start a new virtual code section and set it's code origin to addr.
-
+`END VIRTUAL` -> End a virtual code section.
 
 # BASM preprocessors:
 Any numeric expression can contain a preprocessor.
