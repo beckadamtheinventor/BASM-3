@@ -96,64 +96,59 @@ char *getArgFromLine(const char *line){
 	char c,cc;
 	cc=',';
 	while ((c=*line++)&&c!=' '); //skip the first word
-	if (c){
-		if ((unsigned)(c-0x30)>=10){
-			while (c=*line){
-				if (isRegister(line)){
-					if ((c=*line++)!='A'||(*line=='F')){
-						char c2 = *line++;
-						if (c=='I'&&(c2=='X'||c2=='Y')){
-							if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
+	while (c=*line){
+		if (isRegister(line)){
+			if ((c=*line++)!='A'||(*line=='F')){
+				char c2 = *line++;
+				if (c=='I'&&(c2=='X'||c2=='Y')){
+					if ((c=*line)=='H'||c=='L'){ //ixh/l, iyh/l
+						line++;
+					} else {
+						if (c=='+'||c=='-'||c==')'||(!c)){
+							if (c=='+'){
 								line++;
-							} else {
-								if (c=='+'||c=='-'||c==')'||(!c)){
-									if (c=='+'){
-										line++;
-									}
-									break;
-								}
 							}
+							break;
 						}
 					}
-				} else if (isCondition(line)){
-					line++;
-					if (*line!=',') line++;
-				} else if (isAlphaNumeric(c)||c==0x1A||c==0x1B||c=='+'||c=='-'){
-					break;
-				} else {
-					if (c=='(') cc=')';
-					line++;
 				}
 			}
+		} else if (isCondition(line)){
+			if (line[1]==',') line++;
+			else line+=2;
+		} else if (isAlphaNumeric(c)||c==0x1A||c==0x1B||c=='+'||c=='-'){
+			break;
+		} else {
+			if (c=='(') cc=')';
+			line++;
 		}
-		return processDataLine(line,cc);
 	}
-	return 0;
+	return processDataLine(line,cc);
 }
 
 char *processDataLine(const char *line,char cc){
 	char c,lc;
-	if (c=*line){
+	if (*line){
 		char *data;
 		char *ptr3;
 		int nslen;
 		int len=0;
 		ErrorCode=0;
 		if (NAMESPACE) nslen = strlen(NAMESPACE);
-		if (c==',') line++;
 		ptr3=line;
-		lc=line[-1];
+		lc=0;
 		while ((c=*ptr3++)&&c!=cc){
 			if (c=='.'){
 				if (!NAMESPACE) ErrorCode=NamespaceError;
-				else if (isAlphaNumeric(*ptr3)&&!isAlphaNumeric(lc)){
-					len+=nslen+1;
-				} else {
-					len+=nslen;
+				else if (!isAlphaNumeric(lc)) {
+					if (isAlphaNumeric(*ptr3)){
+						len+=nslen;
+					} else {
+						len+=nslen-1;
+					}
 				}
-			} else {
-				len++;
 			}
+			len++;
 			lc=c;
 		}
 		len++;
@@ -161,11 +156,14 @@ char *processDataLine(const char *line,char cc){
 			if (data=malloc(len)){
 				int num;
 				char *dt=data;
-				lc=line[-1];
+				lc=0;
 				while (c=*line++){
 					if (c=='.'){
-						memcpy(dt+=nslen,NAMESPACE,nslen);
-						if (isAlphaNumeric(*line)&&!isAlphaNumeric(lc)){
+						if (!isAlphaNumeric(lc)){
+							memcpy(dt,NAMESPACE,nslen);
+							dt+=nslen;
+						}
+						if (isAlphaNumeric(*line)){
 							*dt++=c;
 						}
 					} else {
@@ -445,10 +443,11 @@ int getNumberNoMath(char **line,uint8_t *base){
 			} else if ((a=digitValue(c))<(*base)) { //if we're in the number base's range
 				number = number*(*base) + a;
 			} else if (c!=' '){
-				(*line)--; //let the caller deal with this
+				//let the caller deal with this
 				break;
 			}
 		}
+		(*line)--;
 	}
 	if (neg) number = -number;
 	return number;

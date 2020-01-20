@@ -56,7 +56,7 @@ unsigned int ORIGIN = 0;
 int DATA_STACK[MAX_STACK];
 label_t *WORD_STACK;
 int DATA_SP = 0;
-int WORD_SP = -1;
+int WORD_SP = 0;
 char *ErrorCode = 0;
 char *ErrorWord = 0;
 unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE;
@@ -450,33 +450,34 @@ int parseLabel(char *buf){
 	char c;
 	int i=0;
 	uint8_t *ptr2;
-	if (*buf=='.'){
-		if (NAMESPACE){
-			if (strchr(buf,':')){
-				int nslen;
-				int len = strlen(buf)+1;
-				nslen=strlen(NAMESPACE);
-				cpyup(buf+nslen,buf,len);
-				memcpy(buf,NAMESPACE,nslen);
-			} else {
-				ErrorCode=SyntaxError;
-				return 0;
-			}
-		} else {
-			ErrorCode=NamespaceError;
-			return 0;
-		}
-	}
 	ptr2=buf;
+	ErrorCode=0;
 	while ((c=*ptr2++)&&c!=':');
 	if (c){
+		int len2;
+		uint8_t *ptr3;
 		uint8_t *name;
-		int offset;
 		i=ptr2-buf;
-		if (name=malloc(i--)){ //clone the label name
-			int len2;
-			uint8_t *ptr3;
+		if (*buf=='.'){
+			if (NAMESPACE){
+				int nslen;
+				nslen=strlen(NAMESPACE);
+				if (name=malloc(nslen+i--)){
+					memcpy(name,NAMESPACE,nslen);
+					memcpy(name+nslen,buf,i);
+					i+=nslen;
+				} else {
+					ErrorCode=MemoryError;
+				}
+			} else {
+				ErrorCode=NamespaceError;
+			}
+		} else if (name=malloc(i--)){ //clone the label name
 			memcpy(name,buf,i);
+		} else {
+			ErrorCode=MemoryError;
+		}
+		if (!ErrorCode){
 			name[i]=0;
 			if (*ptr2){
 				if (ptr3=processDataLine(ptr2,0)){
@@ -489,12 +490,9 @@ int parseLabel(char *buf){
 				defineLabel(name,(void*)ORIGIN);
 				return 1;
 			}
-		} else {
-			ErrorCode=MemoryError;
 		}
-	} else { //this isn't a label define, is it?
-		ErrorWord = buf;
-	}
+	} //this isn't a label define, is it?
+	ErrorWord = buf;
 	return 0;
 }
 
@@ -578,7 +576,7 @@ label_t *findLabel(const char *name){
 	int i = WORD_SP;
 	while (i--) {
 		data = &WORD_STACK[i];
-		if (!data->bytes&M_NUM_BYTES){
+		if (!(data->bytes&M_NUM_BYTES)){
 			if (!strcmp(data->name,name)){
 				return data;
 			}
@@ -606,7 +604,6 @@ void setLabelValueValue(label_t *data,int value){
 }
 
 void defineLabel(const char *name,void *val){ //write a new label
-	ti_Seek(0,SEEK_END,gfp);
 	ti_Write(&name,3,1,gfp); //write a pointer to the name of the label.
 	ti_Write(&val,3,1,gfp); //write the value of the label.
 	ti_Write(&ORIGIN,3,1,gfp); //write the label's origin pointer
@@ -618,7 +615,6 @@ void defineLabel(const char *name,void *val){ //write a new label
 void defineGoto(void *val,int offset){ //write a new 'goto'. Basically a place to put an address.
 	int tell=O_FILE_TELL+offset;
 	offset+=ORIGIN;
-	ti_Seek(0,SEEK_END,gfp);
 	ti_Write(&val,3,1,gfp); //gotos don't have names, so just write the value so that we can display the error word correctly.
 	ti_Write(&val,3,1,gfp); //write a pointer to the value of the address.
 	ti_Write(&offset,3,1,gfp); //write the goto's origin pointer
@@ -743,7 +739,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 void UpdateWordStack(void){
 	ti_Rewind(gfp);
 	WORD_STACK = ti_GetDataPtr(gfp);
-	WORD_SP++;
+	WORD_SP = ti_GetSize(gfp) / SIZEOF_LABEL_T;
+	ti_Seek(0,SEEK_END,gfp);
 }
 
 uint8_t *checkIncludes(const char *name){
