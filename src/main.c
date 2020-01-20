@@ -56,7 +56,7 @@ unsigned int ORIGIN = 0;
 int DATA_STACK[MAX_STACK];
 label_t *WORD_STACK;
 int DATA_SP = 0;
-int WORD_SP;
+int WORD_SP = -1;
 char *ErrorCode = 0;
 char *ErrorWord = 0;
 unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE;
@@ -74,9 +74,10 @@ int assemble(const char *inFile, char *outFile);
 int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var_t fp);
 int main_postprocessor(ti_var_t fp);
 
+void trySetNamespace(const char *line);
 void *readTokens(uint8_t *buffer,unsigned int amount,void *ptr,void *max);
 void removeLeadingSpaces(uint8_t *buffer);
-char *parseLabel(char *buf);
+int parseLabel(char *buf);
 void writeArgs(char *buf,int len,ti_var_t fp);
 void setLabelValue(label_t *data,const char *value_ptr);
 void setLabelValueValue(label_t *data,int value);
@@ -211,24 +212,24 @@ int main_postprocessor(ti_var_t fp){
 	int i;
 	O_FILE_SIZE = ti_Tell(fp);
 	assembling_line = 0;
+	ErrorCode = 0;
 	messageAt("Filling addresses...     ",0,9);
 	i = WORD_SP;
 	while (i--) {
 		gt = &WORD_STACK[i];
+		if (gt->bytes&F_EXPRESSION_VALUE) ErrorWord=(char*)gt->value;
 		if (gt->bytes&M_NUM_BYTES){ //set address for this item.
 			int val = getLabelValue(gt); //get the goto's value
-			if (gt->bytes&F_OFFSET_VALUE){
-				val -= gt->org; //calculate the JR offset byte
-				if ((unsigned)(val+0x80)>0xFF){
-					ErrorCode = "JR offset out of range";
-					ErrorWord = (char*)gt->value;
-					break;
+			if (!ErrorCode){
+				if (gt->bytes&F_OFFSET_VALUE){
+					val -= gt->org; //calculate the JR offset byte
+					if ((unsigned)(val+0x80)>0xFF) ErrorCode = "JR offset out of range";
 				}
+				ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
+				ti_Write(&val,gt->bytes&M_NUM_BYTES,1,fp); //write in the data
 			}
-			ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
-			ti_Write(&val,gt->bytes&M_NUM_BYTES,1,fp); //write in the data
 		} else { //try to set the label's value
-			if (gt->bytes&F_EXPRESSION_VALUE){ //pointer to value
+			if (gt->bytes&F_EXPRESSION_VALUE){ //pointer to value expression
 				int val = getLabelValue(gt);
 				if (!ErrorCode){ //no errors occurred
 					gt->bytes&=-(F_EXPRESSION_VALUE|F_UNDEFD_VALUE);
@@ -237,9 +238,6 @@ int main_postprocessor(ti_var_t fp){
 			}
 		}
 		if (ErrorCode) break;
-	}
-	if (ErrorCode) {
-		ErrorWord=(char*)gt->value;
 	}
 	return !(int)ErrorCode;
 }
@@ -398,16 +396,9 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 									ErrorCode = "Invalid argument";
 								}
 							} else if (!strncmp(&buf,"LBL ",4)){
-								if (parseLabel(&buf[4])){
-									goto trySetNamespace;
-								}
-							} else if (line=parseLabel(&buf)){
-								uint8_t *n;
-								trySetNamespace:;
-								ErrorCode = 0;
-								if (n=strchr(line,':')){
-									if (!n[1]) NAMESPACE = line;
-								}
+								if (parseLabel(&buf[4])) trySetNamespace(&buf[4]);
+							} else if (parseLabel(&buf)){
+								trySetNamespace(&buf);
 							} else if (edata=getEmitData(&buf)){
 								if (!*edata){
 									uint16_t n=*((uint16_t*)(edata+1));
@@ -419,6 +410,7 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 									ORIGIN+=n;
 								}
 							} else {
+								ErrorWord = &buf;
 								ErrorCode = UndefinedLabelError;
 							}
 						} else {
@@ -439,14 +431,27 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 	return !(int)ErrorCode;
 }
 
-char *parseLabel(char *buf){
+void trySetNamespace(const char *line){
+	char c;
+	char *name = line;
+	while ((c=*line++)&&c!=':'); //repeat until colon or eol
+	if (c&&(!*line--)){ //if the line ends with ':'
+		char *ns;
+		int l=line-name;
+		if (ns=malloc(l+1)){
+			memcpy(ns,name,l);
+			ns[l]=0;
+			NAMESPACE = ns; //set the namespace
+		}
+	}
+}
+
+int parseLabel(char *buf){
 	char c;
 	int i=0;
 	uint8_t *ptr2;
 	if (*buf=='.'){
 		if (NAMESPACE){
-			uint8_t *cname;
-			uint8_t *word;
 			if (strchr(buf,':')){
 				int nslen;
 				int len = strlen(buf)+1;
@@ -473,32 +478,16 @@ char *parseLabel(char *buf){
 			uint8_t *ptr3;
 			memcpy(name,buf,i);
 			name[i]=0;
-			if (ptr2[1]){
-				len2 = strlen(ptr2)+1;
-				ptr3=ptr2;
-				while ((c=*ptr3++)&&c!='.');
-				if (c&&(!*ptr3--)){
-					if (NAMESPACE){
-						int l;
-						memcpy(ptr3,NAMESPACE,l=strlen(NAMESPACE)+1);
-						len2+=l;
-					} else {
-						ErrorCode=NamespaceError;
-						return 0;
-					}
-				}
-				if (ptr3=malloc(len2)){ //clone the data so we can keep it
-					memcpy(ptr3,ptr2,len2);
+			if (*ptr2){
+				if (ptr3=processDataLine(ptr2,0)){
 					CURRENT_BYTES=F_EXPRESSION_VALUE;
 					defineLabel(name,ptr3);
-					return name;
-				} else {
-					ErrorCode = MemoryError; //if we can't malloc, there's no memory left. Abort.
+					return 1;
 				}
 			} else {
 				CURRENT_BYTES=0;
 				defineLabel(name,(void*)ORIGIN);
-				return buf;
+				return 1;
 			}
 		} else {
 			ErrorCode=MemoryError;
@@ -566,14 +555,9 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			uint8_t *ptr=buf;
 			num = getNumber(&buf,0,0);
 			if (ErrorCode==UndefinedLabelError){
-				uint8_t *dt;
 				int slen;
-				dt=strchr(ptr,',');
-				if (dt) slen = dt-ptr+1;
-				else slen = strlen(ptr)-1;
-				if (dt=malloc(slen+1)){
-					strcpy(dt,ptr);
-					defineGoto(dt,0);
+				if (ptr=processDataLine(ptr,',')){
+					defineGoto(ptr,0);
 					ErrorCode=0;
 				} else {
 					ErrorCode=MemoryError;
@@ -594,7 +578,7 @@ label_t *findLabel(const char *name){
 	int i = WORD_SP;
 	while (i--) {
 		data = &WORD_STACK[i];
-		if (!(data->bytes&M_NUM_BYTES)){
+		if (!data->bytes&M_NUM_BYTES){
 			if (!strcmp(data->name,name)){
 				return data;
 			}
@@ -627,7 +611,7 @@ void defineLabel(const char *name,void *val){ //write a new label
 	ti_Write(&val,3,1,gfp); //write the value of the label.
 	ti_Write(&ORIGIN,3,1,gfp); //write the label's origin pointer
 	ti_Write(&O_FILE_TELL,3,1,gfp); //write the current file offset
-	ti_PutC(CURRENT_BYTES,gfp);//CURRENT_BYTES is also used to hold whether the value is a pointer to an expression or just a value.
+	ti_PutC(CURRENT_BYTES&-M_NUM_BYTES,gfp);//CURRENT_BYTES is also used to hold whether the value is a pointer to an expression or just a value.
 	UpdateWordStack();
 }
 
@@ -635,7 +619,7 @@ void defineGoto(void *val,int offset){ //write a new 'goto'. Basically a place t
 	int tell=O_FILE_TELL+offset;
 	offset+=ORIGIN;
 	ti_Seek(0,SEEK_END,gfp);
-	ti_Write((void*)0xFF0000,3,1,gfp); //gotos don't have names anymore
+	ti_Write(&val,3,1,gfp); //gotos don't have names, so just write the value so that we can display the error word correctly.
 	ti_Write(&val,3,1,gfp); //write a pointer to the value of the address.
 	ti_Write(&offset,3,1,gfp); //write the goto's origin pointer
 	ti_Write(&tell,3,1,gfp); //write the current file offset
@@ -692,7 +676,6 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 			}
 			ptr++;
 		}
-		ErrorWord = data;
 	} else {
 		ErrorCode = MemoryError;
 	}
@@ -760,7 +743,7 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 void UpdateWordStack(void){
 	ti_Rewind(gfp);
 	WORD_STACK = ti_GetDataPtr(gfp);
-	WORD_SP = ti_GetSize(gfp) / SIZEOF_LABEL_T;
+	WORD_SP++;
 }
 
 uint8_t *checkIncludes(const char *name){
@@ -814,15 +797,15 @@ bool includeFile(const char *fname,const char *namespace){
 
 void error(const char *str,const char *word){
 	char sbuf[80];
-	printAt(str,0,1);
+	messageAt(str,0,1);
 	if (word){
 		printAt(" \"",0,2);
-		os_PutStrFull(word);
+		messageAt(word,2,2);
 		os_PutStrFull("\"");
 	}
 	if (assembling_line){
 		sprintf(&sbuf,"Error on line %d",assembling_line);
-		printAt(&sbuf,0,3);
+		messageAt(&sbuf,0,3);
 	}
 }
 
@@ -863,6 +846,7 @@ sk_key_t pause(void){
 void message(const char *msg){
 	int l;
 	if (l=strlen(msg)){
+		printAt("                          ",0,8);
 		printAt(msg,0,8);
 		ti_Write(msg,l,1,efp);
 	}
@@ -872,6 +856,7 @@ void message(const char *msg){
 void messageAt(const char *msg,uint8_t x,uint8_t y){
 	int l;
 	if (l=strlen(msg)){
+		printAt("                         "+x,x,y);
 		printAt(msg,x,y);
 		ti_Write(msg,l,1,efp);
 	}

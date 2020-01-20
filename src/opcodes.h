@@ -55,6 +55,7 @@ extern int stack_pop(void);
 
 char *processOpcodeLine(const char *name);
 char *getArgFromLine(const char *line);
+char *processDataLine(const char *line,char cc);
 uint8_t *checkInternal(const char *line,define_entry_t **endptr);
 bool isRegister(const char *name);
 bool isCondition(const char *name);

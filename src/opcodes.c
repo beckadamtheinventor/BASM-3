@@ -116,10 +116,8 @@ char *getArgFromLine(const char *line){
 						}
 					}
 				} else if (isCondition(line)){
-					if ((c=*line)!=','){
-						line++;
-					}
 					line++;
+					if (*line!=',') line++;
 				} else if (isAlphaNumeric(c)||c==0x1A||c==0x1B||c=='+'||c=='-'){
 					break;
 				} else {
@@ -128,20 +126,57 @@ char *getArgFromLine(const char *line){
 				}
 			}
 		}
-		if (c=*line){
-			char *data;
-			int len=0;
-			if (c==',') line++;
-			do c=line[len++]; while (c&&c!=cc); len--;
-			if (len){
-				if (data=malloc(len+1)){
-					int num;
-					memcpy(data,line,len);
-					data[len]=0;
-					return data;
+		return processDataLine(line,cc);
+	}
+	return 0;
+}
+
+char *processDataLine(const char *line,char cc){
+	char c,lc;
+	if (c=*line){
+		char *data;
+		char *ptr3;
+		int nslen;
+		int len=0;
+		ErrorCode=0;
+		if (NAMESPACE) nslen = strlen(NAMESPACE);
+		if (c==',') line++;
+		ptr3=line;
+		lc=line[-1];
+		while ((c=*ptr3++)&&c!=cc){
+			if (c=='.'){
+				if (!NAMESPACE) ErrorCode=NamespaceError;
+				else if (isAlphaNumeric(*ptr3)&&!isAlphaNumeric(lc)){
+					len+=nslen+1;
 				} else {
-					ErrorCode = MemoryError;
+					len+=nslen;
 				}
+			} else {
+				len++;
+			}
+			lc=c;
+		}
+		len++;
+		if (!ErrorCode){
+			if (data=malloc(len)){
+				int num;
+				char *dt=data;
+				lc=line[-1];
+				while (c=*line++){
+					if (c=='.'){
+						memcpy(dt+=nslen,NAMESPACE,nslen);
+						if (isAlphaNumeric(*line)&&!isAlphaNumeric(lc)){
+							*dt++=c;
+						}
+					} else {
+						*dt++=c;
+					}
+					lc=c;
+				}
+				*dt=0;
+				return data;
+			} else {
+				ErrorCode = MemoryError;
 			}
 		}
 	}
@@ -200,13 +235,10 @@ int getNumber(char **line,label_t *gt,bool jr){
 	unsigned char c,c2;
 	int number;
 	uint8_t base;
-	char *oldline;
 	base=10;
 	ErrorCode=0;
-	oldline = *line;
 	if (gt){
-		if (**line==':'){
-			(*line)++;
+		if ((c=*(*line)++)==':'){
 			if ((c=*(*line)++)=='-'){
 				number = gt->org - getNumberNoMath(line,&base);
 			} else if (c=='+'){
@@ -217,16 +249,15 @@ int getNumber(char **line,label_t *gt,bool jr){
 				ErrorCode = NumberFormatError;
 				return 0;
 			}
-		} else if ((c=*(*line)++)=='+'){
-			number = gt->org + getNumberNoMath(line,&base);
 		} else if (c=='-'){
 			number = gt->org - getNumberNoMath(line,&base);
+		} else if (c=='+'){
+			number = gt->org + getNumberNoMath(line,&base);
 		} else {
 			(*line)--;
-			goto defaultnumber;
+			number = getNumberNoMath(line,&base);
 		}
 	} else {
-		defaultnumber:;
 		number = getNumberNoMath(line,&base);
 	}
 	if (jr) CURRENT_BYTES|=F_OFFSET_VALUE;
@@ -250,25 +281,26 @@ int getNumber(char **line,label_t *gt,bool jr){
 				return 0;
 			}
 		} else if (c=='>') {
-			if ((c2=*(*line))=='>'){
-				(*line)++;
+			if ((c2=*(*line)++)=='>'){
 				number = number >> getNumberNoMath(line,&base);
 			} else if (c2=='='){
 				number = number >= getNumberNoMath(line,&base);
 			} else {
+				(*line)--;
 				number = number > getNumberNoMath(line,&base);
 			}
 		} else if (c=='<'){
-			if ((c2=*(*line))=='<'){
+			if ((c2=*(*line)++)=='<'){
 				(*line)++;
 				number = number << getNumberNoMath(line,&base);
 			} else if (c2=='=') {
 				number = number <= getNumberNoMath(line,&base);
 			} else {
+				(*line)--;
 				number = number < getNumberNoMath(line,&base);
 			}
 		} else if (c=='!'){
-			if ((c2=*(*line))=='A'){
+			if ((c2=*(*line)++)=='A'){
 				number = number && getNumberNoMath(line,&base);
 			} else if (c2=='O'){
 				number = number || getNumberNoMath(line,&base);
@@ -292,10 +324,7 @@ int getNumber(char **line,label_t *gt,bool jr){
 		} else if (c!=' ') {
 			ErrorCode = NumberFormatError;
 		}
-		if (ErrorCode) {
-			ErrorWord = oldline;
-			return 0;
-		}
+		if (ErrorCode) return 0;
 	}
 	return number;
 }
@@ -306,6 +335,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 	uint8_t a;
 	bool neg=0;
 	number = 0;
+	ErrorWord=*line;
 	if ((c=**line)==0x1A||c=='-'){
 		neg=1; (*line)++;
 	}
@@ -315,30 +345,26 @@ int getNumberNoMath(char **line,uint8_t *base){
 		label_t *gt;
 		if (nbuf=getWord(line)){
 			if (*nbuf=='.') {
-				if (nbuf[1]){
-					if (NAMESPACE){
-						uint8_t *tptr;
-						int nslen;
-						int nlen=strlen(nbuf)+1;
-						nslen=strlen(NAMESPACE);
-						if (tptr=malloc(nslen+nlen)){
-							wstrcpy(tptr,nbuf,nlen,NAMESPACE,nslen);
-							message(tptr);
-							free(nbuf);
-							if (gt=findLabel(tptr)){
-								free(tptr);
-								number = getLabelValue(gt);
-							} else {
-								ErrorCode = UndefinedLabelError;
-							}
+				if (NAMESPACE){
+					uint8_t *tptr;
+					int nslen;
+					int nlen=strlen(nbuf)+1;
+					nslen=strlen(NAMESPACE);
+					if (tptr=malloc(nslen+nlen)){
+						memcpy(tptr,NAMESPACE,nslen);
+						memcpy(tptr+nslen,nbuf,nlen);
+						free(nbuf);
+						if (gt=findLabel(tptr)){
+							free(tptr);
+							number = getLabelValue(gt);
 						} else {
-							ErrorCode=MemoryError;
+							ErrorCode = UndefinedLabelError;
 						}
 					} else {
-						ErrorCode=NamespaceError;
+						ErrorCode=MemoryError;
 					}
 				} else {
-					if (gt=findLabel(NAMESPACE)) number = getLabelValue(gt);
+					ErrorCode=NamespaceError;
 				}
 			} else {
 				if (data=checkIncludes(nbuf)){
@@ -419,10 +445,10 @@ int getNumberNoMath(char **line,uint8_t *base){
 			} else if ((a=digitValue(c))<(*base)) { //if we're in the number base's range
 				number = number*(*base) + a;
 			} else if (c!=' '){
+				(*line)--; //let the caller deal with this
 				break;
 			}
 		}
-		(*line)--;
 	}
 	if (neg) number = -number;
 	return number;
