@@ -3,7 +3,6 @@ Beck's Assembler v3 - "On-calc" Assembler for the TI84+CE family of graphing cal
 
 
 # TODO
-- Fix local label `.`
 - wring out bugs as they appear
 
 
@@ -31,31 +30,32 @@ This will allow your program to reference the standard ti84pce.inc defines, usin
 
 
 The opcodes of BASM are the same as when using "eZ80.inc" with fasmg.
+BASM allows comment lines, trailing comments, leading spaces, and extra spaces between words. (hopefuly)
 
 Example program:
 ```
 FORMAT ASM "BIN"
-JP MAIN
-DB 2
-DB "BASM-3.0A Example program",0
+ JP MAIN
+ DB 2
+ DB "BASM-3.0A Example program",0
 //This is a comment
 //Lbl is an alternative label define. Useful for jumping around the program using Cesium's in-editor Label Goto feature
-//Include appvar TI84PCEG with the prefix TIθ
-INCLUDE "TI84PCEG" TIθ
+//Include appvar TI84PCEG with the prefix TI.
+INCLUDE "TI84PCEG" TI.
 Lbl MAIN:
-CALL TIθRUNINDICOFF
-CALL TIθBOOTθCLEARVRAM
-XOR A,A
-LD (TIθCURROW),A
-LD (TIθCURCOL),A
-CALL TIθBOOTθPUTS
-CALL GETKEY
-CALL TIθRUNINDICON
-JP TIθDRAWSTATUSBAR
+ CALL TI.RUNINDICOFF
+ CALL TI.BOOTθCLEARVRAM
+ XOR A,A
+ LD (TI.CURROW),A
+ LD (TI.CURCOL),A
+ CALL TI.BOOTθPUTS
+ CALL GETKEY
+ CALL TI.RUNINDICON
+ JP TI.DRAWSTATUSBAR
 GETKEY:
-CALL TIθGETCSC
-OR A,A
-JR Z,GETKEY
+ CALL TI.GETCSC
+ OR A,A
+ JR Z,.
 RET
 ```
 
@@ -82,13 +82,24 @@ Any alphanumeric text, including dot '.' and theta 'θ', starting with a letter,
 You may also start this with the `Lbl ` token (or the letters, but that would defeat the purpose) so that you may use Cesium's in-editor label jumping feature.
 If this text begins with a dot '.' then it will be appended to the current namespace, creating a local label.
 As long as you are within the namespace that it is defined, you can use this text as a shorthand for this label, without labels of the same name elsewhere conflicting with it.
+If the label name is only a dot '.' then it refers to the current namespace.
+Ex.
+```
+ LD A,2
+LOOP:
+ LD B,5
+.LOOP:
+ DJNZ .LOOP
+ DEC A
+ JR NZ,.
+```
 From outside that namespace, you will need to use it's full name. The namespace appended by the local label name.
 Following the colon can come the end of line, which will set the label value to it's offset from the output origin plus the origin. This also sets the current namespace. Local labels do not set the namespace.
 There are three other methods of setting labels, but these also do not set the current namespace.
 - '='	set the label value to the following definite expression.
 - '-'	set the label value to the current offset plus the current origin minus the following definite expression.
 - '+'	set the label value to the current offset plus the current origin plus the following definite expression.
-All labels, words, and opcodes are case-insensitive.
+All labels, words, and opcodes are case-insensitive for the time being, this might change soon.
 
 
 # BASM built-in words:

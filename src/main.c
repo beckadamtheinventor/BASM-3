@@ -65,7 +65,6 @@ unsigned int STACK_SP;
 int *STACK;
 
 ti_var_t gfp;
-ti_var_t efp;
 
 include_entry_t first_include;
 include_entry_t *last_include = &first_include;
@@ -96,13 +95,10 @@ void printAt(const char *str,uint8_t x,uint8_t y);
 void printXAt(const char *str,int amt,uint8_t x,uint8_t y);
 char *upperCaseStr(char *str);
 sk_key_t pause(void);
-void message(const char *msg);
-void messageAt(const char *msg,uint8_t x,uint8_t y);
 void stack_push(int val);
 int stack_pop(void);
 
 void *cpyup(void *dest,void *src,size_t len);
-void *wstrcpy(void *word2,size_t len2,void *word1,size_t len1,void *buffer);
 
 extern int isNumber(const char *line);
 
@@ -116,16 +112,16 @@ void main(void){
 
 	ti_CloseAll();
 	os_ClrHomeFull();
-	if ((ptr = os_RclAns(&vt))&&vt==4){
+	if ((ptr = os_GetAnsData(&vt))&&vt==4){
 		readTokens(&inFile,8,ptr->data,ptr->data+ptr->len);
-		messageAt("Input file:",0,0);
+		printAt("Input file:",0,0);
 		os_PutStrFull(&inFile);
 		memset(&outFile,0,11);
 		if (fp2=ti_Open("BASMdata","r")){
 			uint8_t l;
 			uint8_t *org = ti_GetDataPtr(fp2);
 			if (strcmp(org,"BASM3-OPCODES")){
-				messageAt("Malformed BASMdata.8xv",0,0);
+				printAt("Malformed BASMdata.8xv",0,0);
 				ti_Close(fp2);
 			} else {
 				uint16_t *ptr = (uint16_t*)(org+32);
@@ -136,7 +132,6 @@ void main(void){
 				if (STACK=malloc(512*3)){
 					STACK_SP=0;
 					gfp = ti_OpenVar(TEMP_FILE_2,"w",TI_TPRGM_TYPE);
-					efp = ti_Open(MESSAGE_FILE,"w");
 					if (assemble(&inFile,&outFile)){
 						if (outFile[0]&&outFile[9]){
 							fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
@@ -147,26 +142,25 @@ void main(void){
 							}
 							ti_Close(fp);
 							ti_Close(fp2);
-							messageAt("Assembled Successfuly!",0,4);
-							messageAt("Output file:",0,5);
-							messageAt(&outFile,12,5);
+							printAt("Assembled Successfuly!",0,4);
+							printAt("Output file:",0,5);
+							printAt(&outFile,12,5);
 						} else {
-							messageAt("Output file not specified.",0,8);
+							printAt("Output file not specified.",0,8);
 						}
 					} else {
 						error(ErrorCode,ErrorWord);
 					}
-					ti_Close(efp);
 					ti_Close(gfp);
 				} else {
-					messageAt(MemoryError,0,8);
+					printAt(MemoryError,0,8);
 				}
 			}
 		} else {
-			messageAt("Missing BASMdata.8xv",0,0);
+			printAt("Missing BASMdata.8xv",0,0);
 		}
 	} else {
-		messageAt("Error: Could not open Ans",0,0);
+		printAt("Error: Could not open Ans",0,0);
 	}
 	pause();
 	ti_CloseAll();
@@ -191,7 +185,7 @@ int assemble(const char *inFile, char *outFile){
 
 
 	UpdateWordStack();
-	messageAt("Assembling...  ",0,9);
+	printAt("Assembling...  ",0,9);
 
 	fp = ti_OpenVar(TEMP_FILE,"w",TI_TPRGM_TYPE);
 	if (len){
@@ -201,6 +195,7 @@ int assemble(const char *inFile, char *outFile){
 	ptr = (uint8_t*)I_FILE_ORG;
 	assembling_line = 1;
 	if (main_assembler(&ptr,max,0,outFile,fp)){
+		O_FILE_SIZE = ti_Tell(fp);
 		main_postprocessor(fp);
 	}
 	ti_Close(fp);
@@ -210,10 +205,9 @@ int assemble(const char *inFile, char *outFile){
 int main_postprocessor(ti_var_t fp){
 	label_t *gt;
 	int i;
-	O_FILE_SIZE = ti_Tell(fp);
 	assembling_line = 0;
 	ErrorCode = 0;
-	messageAt("Filling addresses...     ",0,9);
+	printAt("Filling addresses...     ",0,9);
 	i = WORD_SP;
 	while (i--) {
 		gt = &WORD_STACK[i];
@@ -460,8 +454,7 @@ int parseLabel(char *buf){
 		i=ptr2-buf;
 		if (*buf=='.'){
 			if (NAMESPACE){
-				int nslen;
-				nslen=strlen(NAMESPACE);
+				int nslen=strlen(NAMESPACE);
 				if (name=malloc(nslen+i--)){
 					memcpy(name,NAMESPACE,nslen);
 					memcpy(name+nslen,buf,i);
@@ -539,19 +532,20 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 	CURRENT_BYTES = len;
 	while (c=*buf){
 		if (c=='"'){
-			int offs = ti_Tell(fp);
+			char *str;
+			int len;
+			buf++; str=buf;
+			while ((c=*buf++)&&c!='"');
+			len=buf-(str+1);
+			ti_Write(str,len,1,fp);
+			ORIGIN+=len;
 			buf++;
-			while ((c=*buf++)&&c!='"') {
-				if (c==0xF6){ //thick forward slash
-					c=*buf++;
-				}
-				ti_PutC(c,fp);
-			}
+		} else if (c==','){
 			buf++;
-			ORIGIN+=ti_Tell(fp)-offs;
 		} else {
 			uint8_t *ptr=buf;
 			num = getNumber(&buf,0,0);
+			buf--;
 			if (ErrorCode==UndefinedLabelError){
 				int slen;
 				if (ptr=processDataLine(ptr,',')){
@@ -563,7 +557,6 @@ void writeArgs(char *buf,int len,ti_var_t fp){
 			}
 			ti_Write(&num,len,1,fp);
 			ORIGIN+=len;
-			buf--;
 			if (ErrorCode){
 				break;
 			}
@@ -693,7 +686,6 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 			while (*ptr){
 				int total_len;
 				uint8_t *next=ptr+(total_len=strlen(ptr)+1);
-				total_len+=*next+1;
 				if (!strcmp(ptr,cname)){ //found it!
 					if (*next){ //return the value
 						return next;
@@ -709,14 +701,10 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 						relo_len = *((uint16_t*)(next+4));
 						code_len = total_len-(relo_len+6);
 						if (data=malloc(code_len+3)){
-							uint16_t use_offset;
 							uint16_t *relo_tbl=(uint16_t*)(next+6);
 							memcpy(data+3,next+relo_len+3,code_len); //write the code
-							if (relo_len){
-								do { //add the new offset to all the specified jumps
-									use_offset = (*relo_tbl++);
-									*((int*)(data+use_offset+3))+=ORIGIN;
-								} while (relo_len-=2);
+							while (relo_len-=2){ //add the new offset to all the specified jumps
+								(*(int*)(data+3+(*relo_tbl++)))+=ORIGIN;
 							}
 							*((int*)data)=code_len<<8;
 							return (uint8_t*)data;
@@ -727,7 +715,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 					}
 				}
 				//continue searching
-				ptr+=total_len;
+				if (!(total_len=(*next)+1)) total_len=*((uint16_t*)(next+2))+2;
+				ptr=next+total_len;
 			}
 		} else {
 			ErrorCode = "Malformed include file";
@@ -793,16 +782,16 @@ bool includeFile(const char *fname,const char *namespace){
 }
 
 void error(const char *str,const char *word){
-	char sbuf[80];
-	messageAt(str,0,1);
+	printAt(str,0,1);
 	if (word){
 		printAt(" \"",0,2);
-		messageAt(word,2,2);
+		printAt(word,2,2);
 		os_PutStrFull("\"");
 	}
 	if (assembling_line){
+		char sbuf[26];
 		sprintf(&sbuf,"Error on line %d",assembling_line);
-		messageAt(&sbuf,0,3);
+		printAt(&sbuf,0,3);
 	}
 }
 
@@ -838,26 +827,6 @@ sk_key_t pause(void){
 	sk_key_t k;
 	while (!(k=os_GetCSC()));
 	return k;
-}
-
-void message(const char *msg){
-	int l;
-	if (l=strlen(msg)){
-		printAt("                          ",0,8);
-		printAt(msg,0,8);
-		ti_Write(msg,l,1,efp);
-	}
-	ti_PutC(0x0A,efp);
-}
-
-void messageAt(const char *msg,uint8_t x,uint8_t y){
-	int l;
-	if (l=strlen(msg)){
-		printAt("                         "+x,x,y);
-		printAt(msg,x,y);
-		ti_Write(msg,l,1,efp);
-	}
-	ti_PutC(0x0A,efp);
 }
 
 void stack_push(int val){

@@ -7,7 +7,7 @@
 
 NAME        ?= BASM
 COMPRESSED  ?= YES
-ICON        ?= iconc.png
+#ICON        ?= iconc.png
 DESCRIPTION ?= "Beck's Assembler v3.0"
 
 # ----------------------------

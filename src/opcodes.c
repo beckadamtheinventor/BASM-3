@@ -139,8 +139,8 @@ char *processDataLine(const char *line,char cc){
 		lc=0;
 		while ((c=*ptr3++)&&c!=cc){
 			if (c=='.'){
-				if (!NAMESPACE) ErrorCode=NamespaceError;
-				else if (!isAlphaNumeric(lc)) {
+				if (!isAlphaNumeric(lc)) {
+					if (!NAMESPACE) ErrorCode=NamespaceError;
 					if (isAlphaNumeric(*ptr3)){
 						len+=nslen;
 					} else {
@@ -410,12 +410,8 @@ int getNumberNoMath(char **line,uint8_t *base){
 					uint8_t sbuf[26];
 					*line=ptr+5;
 					number=getNumber(line,&temp_gt,0);
-					if (CURRENT_BYTES&F_STRING_VALUE){
-						message((char*)number);
-					} else {
-						sprintf(&sbuf,"%d | hex:%x",number,number);
-						message(&sbuf);
-					}
+					sprintf(&sbuf,"%d | hex:%x",number,number);
+					printAt(&sbuf);
 					(*line)--;
 				} else if (!strncmp(ptr,"PUTS ",5)){ //print a string
 					uint8_t *sl;

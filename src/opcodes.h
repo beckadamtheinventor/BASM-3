@@ -64,3 +64,4 @@ int getNumber(char **line,label_t *gt,bool jr);
 int getNumberNoMath(char **line,uint8_t *base);
 int digitValue(char c);
 char *getWord(const char **line);
+char *skipWord(char *line);
