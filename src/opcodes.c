@@ -247,8 +247,6 @@ int getNumber(char **line,label_t *gt,bool jr){
 				ErrorCode = NumberFormatError;
 				return 0;
 			}
-		} else if (c=='-'){
-			number = gt->org - getNumberNoMath(line,&base);
 		} else if (c=='+'){
 			number = gt->org + getNumberNoMath(line,&base);
 		} else {

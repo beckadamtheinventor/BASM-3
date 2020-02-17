@@ -24,34 +24,49 @@ except:
 
 letters = {l:[] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ["}
 
-for line in lines:
+def detectBase(line,i):
+	j = i
+	while line[j] in "0123456789ABCDEF":
+		j+=1
+		if j>=len(line): break
+	base=10
+	if j<len(line):
+		if line[j]=='h': base=16
+		if line[j]=='b': base=2
+		if line[j]=='o': base=8
+	return j,base
+
+lx=0
+while lx<len(lines):
+	line=lines[lx]; lx+=1
 	if not len(line):
 		continue
 	if line[0]==';' or not len(line):
 		continue
 	elif line[0]=='?':
-		k = line.find(':=')
-		i = k+2
-		while line[i] in " \t":
-			i+=1
-			if i>=len(line): break
-		if i<len(line):
-			j = i
-			while line[j] in "0123456789ABCDEF":
-				j+=1
-				if j>=len(line): break
-			base=10
-			if j<len(line):
-				if line[j]=='h': base=16
-				if line[j]=='b': base=2
-				if line[j]=='o': base=8
-			if j>i:
-				word = line[1:k].upper().replace("_","[").replace(".","[").replace("\t","").replace(" ","")
-				try:
-					dt = [word,int(line[i:j],base)]
-					letters[word[0]].append(dt)
-				except:
-					pass
+		if ":=" in line:
+			k = line.find(':=')
+			i = k+2
+			while line[i] in " \t":
+				i+=1
+				if i>=len(line): break
+			if i<len(line):
+				j,base = detectBase(line,i)
+				if j>i:
+					word = line[1:k].upper().replace("_","[").replace(".","[").replace("\t","").replace(" ","")
+					try:
+						dt = [word,int(line[i:j],base)]
+						letters[word[0]].append(dt)
+					except Exception as e:
+						print("[WARNING] Internal Error:",e)
+		elif ":;basm-macro" in line:
+			pass
+			# k = line.find(":;basm_macro")
+			# word = line[1:k].upper().replace("_","[").replace(".","[").replace("\t","").replace(" ","")
+			# toasm = []
+			# while line!=";end macro":
+				# line = lines[lx]; lx+=1
+				# toasm.append(line)
 
 with open("obj/"+fname+".bin","wb") as f:
 	s=b"BASM3.0 INC"

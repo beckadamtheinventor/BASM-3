@@ -43,6 +43,7 @@ const char *SyntaxError = "Syntax Error";
 const char *NamespaceError = "No namespace";
 const char *UserBreakError = "Cancel. Abort.";
 const char *UserBreakWord = "\\o/";
+const char *HEX_CHARS = "0123456789ABCDEF";
 
 extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
@@ -63,6 +64,7 @@ unsigned int O_FILE_ORG,I_FILE_ORG,O_FILE_TELL,O_FILE_SIZE;
 char *NAMESPACE;
 unsigned int STACK_SP;
 int *STACK;
+int (*OutputWriteFunction)(void *data,int len,int count,ti_var_t fp) = ti_Write;
 
 ti_var_t gfp;
 
@@ -97,6 +99,8 @@ char *upperCaseStr(char *str);
 sk_key_t pause(void);
 void stack_push(int val);
 int stack_pop(void);
+
+int _writeHexNibbles(void *data,int len,int count,ti_var_t fp);
 
 void *cpyup(void *dest,void *src,size_t len);
 
@@ -136,7 +140,7 @@ void main(void){
 						if (outFile[0]&&outFile[9]){
 							fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
 							fp = ti_OpenVar(&outFile,"w",outFile[9]);
-							ti_Write(ti_GetDataPtr(fp2),O_FILE_SIZE,1,fp);
+							OutputWriteFunction(ti_GetDataPtr(fp2),O_FILE_SIZE,1,fp);
 							if (outFile[10]&1){
 								ti_SetArchiveStatus(1,fp);
 							}
@@ -317,6 +321,8 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 											outFile[len]=0;
 										}
 										line+=len+1;
+									} else if (!strncmp(line,"HEXDUMP",7)){
+										OutputWriteFunction = _writeHexNibbles;
 									} else {
 										ErrorCode = "Invalid format directive";
 										ErrorWord = line;
@@ -427,15 +433,17 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 
 void trySetNamespace(const char *line){
 	char c;
-	char *name = line;
-	while ((c=*line++)&&c!=':'); //repeat until colon or eol
-	if (c&&(!*line--)){ //if the line ends with ':'
-		char *ns;
-		int l=line-name;
-		if (ns=malloc(l+1)){
-			memcpy(ns,name,l);
-			ns[l]=0;
-			NAMESPACE = ns; //set the namespace
+	if (*line!='.'){
+		char *name = line;
+		while ((c=*line++)&&c!=':'); //repeat until colon or eol
+		if (c&&(!*line--)){ //if the line ends with ':'
+			char *ns;
+			int l=line-name;
+			if (ns=malloc(l+1)){
+				memcpy(ns,name,l);
+				ns[l]=0;
+				NAMESPACE = ns; //set the namespace
+			}
 		}
 	}
 }
@@ -473,6 +481,7 @@ int parseLabel(char *buf){
 		if (!ErrorCode){
 			name[i]=0;
 			if (*ptr2){
+				ptr2--;
 				if (ptr3=processDataLine(ptr2,0)){
 					CURRENT_BYTES=F_EXPRESSION_VALUE;
 					defineLabel(name,ptr3);
@@ -651,10 +660,11 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 							ErrorCode=0;
 						} else {
 							if (lbl->bytes&F_OFFSET_VALUE){
-								setLabelValueValue(lbl,val+ORIGIN+1);
-							} else {
-								setLabelValueValue(lbl,val);
+								val+=ORIGIN+1;
 							}
+							memcpy(buf4+i+1,&val,CURRENT_BYTES&M_NUM_BYTES);
+							WORD_SP--;
+							ti_Seek(SIZEOF_LABEL_T,SEEK_END,gfp); //basically forget about this goto, it's been taken care of.
 						}
 					}
 					return buf4;
@@ -682,10 +692,10 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 		ti_Close(fp);
 		if (!strcmp(ptr,"BASM3.0 INC")){ //check if it's a valid include file
 			i = cname[0]-0x41;
-			ptr+=*((uint16_t*)(ptr+32+i*2)); //get the pointer to the list of constants starting with the first letter
+			ptr+=*((uint16_t*)(ptr+32+(i<<1))); //get the pointer to the list of constants starting with the first letter
 			while (*ptr){
 				int total_len;
-				uint8_t *next=ptr+(total_len=strlen(ptr)+1);
+				uint8_t *next=ptr+strlen(ptr)+1;
 				if (!strcmp(ptr,cname)){ //found it!
 					if (*next){ //return the value
 						return next;
@@ -715,8 +725,8 @@ uint8_t *searchIncludeFile(const char *fname, const char *cname){
 					}
 				}
 				//continue searching
-				if (!(total_len=(*next)+1)) total_len=*((uint16_t*)(next+2))+2;
-				ptr=next+total_len;
+				if (!(total_len=*next)) total_len=*((uint16_t*)(next+2))+1;
+				ptr=next+total_len+1;
 			}
 		} else {
 			ErrorCode = "Malformed include file";
@@ -835,3 +845,19 @@ void stack_push(int val){
 int stack_pop(void){
 	return STACK[--STACK_SP];
 }
+
+int _writeHexNibbles(void *data,int len,int count,ti_var_t fp){
+	uint8_t *dataptr;
+	int i;
+	int total = len*count;
+	dataptr = data;
+	ti_Resize(ti_GetSize(fp)+(total<<1),fp);
+	for (i=0;i<total;i++){
+		uint8_t c = *dataptr++;
+		ti_PutC(HEX_CHARS[c>>4],fp);
+		ti_PutC(HEX_CHARS[c&0xF],fp);
+		if (!(i&0x7)) ti_PutC(0x3F,fp);
+	}
+	return total;
+}
+
