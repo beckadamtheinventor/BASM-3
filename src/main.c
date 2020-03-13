@@ -50,7 +50,7 @@ extern uint8_t buffer[];
 uint8_t ADDR_BYTES = 3;
 uint8_t CURRENT_BYTES;
 uint8_t *O_FILE_PTR;
-define_entry_t *internal_define_pointers[27];
+define_entry_t *internal_define_pointers[26];
 char *LAST_LINE;
 unsigned int assembling_line = 0;
 unsigned int ORIGIN = 0;
@@ -130,7 +130,7 @@ void main(void){
 				ti_Close(fp2);
 			} else {
 				uint16_t *ptr = (uint16_t*)(org+32);
-				for (l=0;l<27;l++){
+				for (l=0;l<26;l++){
 					internal_define_pointers[l] = (define_entry_t*)(org + *ptr++);
 				}
 				ti_Close(fp2);
@@ -281,6 +281,19 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 							return 1;
 						}
 					}
+					if (!strncmp(&buf,"SIS ",4)){
+						ti_PutC(0x40,fp);
+						memcpy(&buf,&buf[4],508);
+					} else if (!strncmp(&buf,"LIS ",4)){
+						ti_PutC(0x49,fp);
+						memcpy(&buf,&buf[4],508);
+					} else if (!strncmp(&buf,"SIL ",4)){
+						ti_PutC(0x52,fp);
+						memcpy(&buf,&buf[4],508);
+					} else if (!strncmp(&buf,"LIL ",4)){
+						ti_PutC(0x5B,fp);
+						memcpy(&buf,&buf[4],508);
+					}
 					if (*buf==0xC4){
 						uint8_t *sptr = &buf;
 						getNumber(&sptr,0,0);
@@ -338,7 +351,6 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 								if (ErrorCode) break;
 							} else if (!strncmp(&buf,"ORIGIN ",7)){
 								line = &buf[7];
-								stack_push(ORIGIN);
 								ORIGIN=getNumber(&line,0,0);
 							} else if (!strncmp(&buf,"VIRTUAL ",8)){
 								char *oldns;
@@ -405,19 +417,19 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 								if (parseLabel(&buf[4])) trySetNamespace(&buf[4]);
 							} else if (parseLabel(&buf)){
 								trySetNamespace(&buf);
-							} else if (edata=getEmitData(&buf)){
-								if (!*edata){
-									uint16_t n=*((uint16_t*)(edata+1));
-									ti_Write(edata+3,n,1,fp);
-									ORIGIN+=n;
-								} else {
-									uint8_t n;
-									ti_Write(edata+1,n=*edata,1,fp);
-									ORIGIN+=n;
-								}
 							} else {
-								ErrorWord = &buf;
-								ErrorCode = UndefinedLabelError;
+								edata=getEmitData(&buf);
+								if (!ErrorCode){
+									if (!*edata){
+										uint16_t n=*((uint16_t*)(edata+1));
+										ti_Write(edata+3,n,1,fp);
+										ORIGIN+=n;
+									} else {
+										uint8_t n;
+										ti_Write(edata+1,n=*edata,1,fp);
+										ORIGIN+=n;
+									}
+								}
 							}
 						} else {
 							if (!ErrorCode) ErrorCode = SyntaxError;
@@ -635,8 +647,10 @@ void defineGoto(void *val,int offset){ //write a new 'goto'. Basically a place t
 uint8_t *getEmitData(const char *name){ //data to write to the file during assembly
 	uint8_t *data;
 	define_entry_t *ptr;
-	if (data=checkInternal(name,&ptr)){
+	if (data=checkNoArgOpcode(name,&ptr)){
 		return data;
+	} else if (ErrorCode){
+		return 0;
 	} else if (data=checkIncludes(name)){
 		return data;
 	} else if (data=processOpcodeLine(name)){
@@ -682,6 +696,7 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 			}
 			ptr++;
 		}
+		ErrorCode=UndefinedLabelError;
 	} else {
 		ErrorCode = MemoryError;
 	}

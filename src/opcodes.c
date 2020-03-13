@@ -181,7 +181,7 @@ char *processDataLine(const char *line,char cc){
 	return 0;
 }
 
-uint8_t *checkInternal(const char *line,define_entry_t **endptr){
+uint8_t *checkNoArgOpcode(const char *line,define_entry_t **endptr){
 	define_entry_t *ptr;
 	int len;
 	char *line2;
@@ -189,29 +189,43 @@ uint8_t *checkInternal(const char *line,define_entry_t **endptr){
 	len=strlen(line);
 	ptr=internal_define_pointers[(*line)-0x41];
 	if (line2=malloc(len+1)){
+		bool spaces_used;
 		char *line3 = line2;
-		while ((c=*line++)&&c!=' ') *line2++=c;
-		*line2++=c;
-		if (c){
-			while (c=*line++){
-				if (c!=' ') *line2++=c;
+		spaces_used=0;
+		while (c=*line++){
+			if (c==' '){
+				if (!spaces_used){
+					*line2++=c;
+					spaces_used=1;
+				}
+			} else {
+				*line2++=c;
 			}
-			*line2++=0;
 		}
-		while (ptr->bytes&&(ptr->flags&F_DIRECT_CMP)){
-			if (!strncmp(line3,&ptr->opcode,N_OPCODE_NAME_BYTES)) {
-				free(line3);
-				return &ptr->bytes;
-			}
-			ptr++;
+		*line2++=0;
+		if (line2=checkOpcodeMatches(ptr,line3)){
+			free(line3);
+			return line2;
 		}
 		free(line3);
 		*endptr = ptr;
-	} else {
-		ErrorCode = MemoryError;
+		return 0;
+	}
+	ErrorCode = MemoryError;
+	return 0;
+}
+
+uint8_t *checkOpcodeMatches(define_entry_t *def,char *name){
+	while (def->bytes&&(def->flags&F_DIRECT_CMP)){
+		if (!strncmp(name,&def->opcode,N_OPCODE_NAME_BYTES)) {
+			return &def->bytes;
+		}
+		def++;
 	}
 	return 0;
 }
+
+
 
 bool isRegister(const char *name){
 	char c,c2,c3;

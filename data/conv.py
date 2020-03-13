@@ -64,7 +64,7 @@ data = """
 3D DEC  A           -                SRL  L           -                -
 3E LD   A,&00       LD   (IX+d),IY   SRL  (HL)        SRL (IY+d)       LD  (HL),IY
 3F CCF              LD   (IX+d),IX   SRL  A           -                LD  (HL),IX
-40 LD   B,B         -                BIT  0,B         -                IN   B,(BC)
+40 SIS              -                BIT  0,B         -                IN   B,(BC)
 41 LD   B,C         -                BIT  0,C         -                OUT  (BC),B
 42 LD   B,D         -                BIT  0,D         -                SBC  HL,BC
 43 LD   B,E         -                BIT  0,E         -                LD   (&0000),BC
@@ -73,7 +73,7 @@ data = """
 46 LD   B,(HL)      LD   B,(IX+d)    BIT  0,(HL)      BIT 0,(IY+d)     IM   0
 47 LD   B,A         -                BIT  0,A         -                LD   I,A
 48 LD   C,B         -                BIT  1,B         -                IN   C,(BC)
-49 LD   C,C         -                BIT  1,C         -                OUT  (BC),C
+49 LIS              -                BIT  1,C         -                OUT  (BC),C
 4A LD   C,D         -                BIT  1,D         -                ADC  HL,BC
 4B LD   C,E         -                BIT  1,E         -                LD   BC,(&0000)
 4C LD   C,H         LD   C,IXH       BIT  1,H         -                MULT BC
@@ -82,7 +82,7 @@ data = """
 4F LD   C,A         -                BIT  1,A         -                LD   R,A
 50 LD   D,B         -                BIT  2,B         -                IN   D,(BC)
 51 LD   D,C         -                BIT  2,C         -                OUT  (BC),D
-52 LD   D,D         -                BIT  2,D         -                SBC  HL,DE
+52 SIL              -                BIT  2,D         -                SBC  HL,DE
 53 LD   D,E         -                BIT  2,E         -                LD   (&0000),DE
 54 LD   D,H         LD   D,IXH       BIT  2,H         -                LEA  IX,IY+d
 55 LD   D,L         LD   D,IXL       BIT  2,L         -                LEA  IY,IX+d
@@ -91,7 +91,7 @@ data = """
 58 LD   E,B         -                BIT  3,B         -                IN   E,(BC)
 59 LD   E,C         -                BIT  3,C         -                OUT  (BC),E
 5A LD   E,D         -                BIT  3,D         -                ADC  HL,DE
-5B LD   E,E         -                BIT  3,E         -                LD   DE,(&0000)
+5B LIL              -                BIT  3,E         -                LD   DE,(&0000)
 5C LD   E,H         LD   E,IXH       BIT  3,H         -                MULT DE
 5D LD   E,L         LD   E,IXL       BIT  3,L         -                -
 5E LD   E,(HL)      LD   E,(IX+d)    BIT  3,(HL)      BIT 3,(IY+d)     IM   2
@@ -315,9 +315,6 @@ for line in data.splitlines():
 				do.append(sepTable(N,line[71:],2,0xED,F=2))
 		N+=1
 
-#do.append([0xEF,"FORMAT ASM",2,[0xEF,0x7B,0,0],DIRECT])
-#do.append([0xED,"LD HL,I",2,[0xED,0xD7,0,0],DIRECT])
-#do.append([0xED,"LD I,HL",2,[0xED,0xC7,0,0],DIRECT])
 do.append([0xED,"TSTIO &00",3,[0xED,0x74,0,0],BYTE_ARG+2])
 
 do2 = {l:[[],[]] for l in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}

@@ -42,7 +42,7 @@ extern ti_var_t gfp;
 extern char *NAMESPACE;
 	
 
-extern define_entry_t *internal_define_pointers[27];
+extern define_entry_t *internal_define_pointers[26];
 
 extern uint8_t *checkIncludes(const char *name);
 extern void defineGoto(void *val,int offset);
@@ -56,7 +56,8 @@ extern int stack_pop(void);
 char *processOpcodeLine(const char *name);
 char *getArgFromLine(const char *line);
 char *processDataLine(const char *line,char cc);
-uint8_t *checkInternal(const char *line,define_entry_t **endptr);
+uint8_t *checkNoArgOpcode(const char *line,define_entry_t **endptr);
+uint8_t *checkOpcodeMatches(define_entry_t *def,char *name);
 bool isRegister(const char *name);
 bool isCondition(const char *name);
 

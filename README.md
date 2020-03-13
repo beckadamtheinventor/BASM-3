@@ -107,7 +107,7 @@ All labels, words, and opcodes are case-insensitive for the time being, this mig
 `FORMAT ASM ARCHIVED "PROGRAM"`-> The output is an Archived, Asm, Protected program.
 `FORMAT APPVAR "APPVAR"` -> The output is an appvar.
 `FORMAT PRGM "PROGRAM"` -> The output is a protected program.
-`ORIGIN 0` -> Push the current origin, set the current origin to 0.
+`ORIGIN 0` -> Set the current origin to 0.
 `INCLUDE "APPVAR" PREFIX`-> Includes "APPVAR" with the prefix PREFIX. Prefixes are useful for speeding up assembly time, but are optional.
 `DB 0,"Hi"`-> Write bytes into the output file.
 `DW 0,1,2`-> Write words (2 byte expressions) into the output file.
@@ -122,6 +122,7 @@ All labels, words, and opcodes are case-insensitive for the time being, this mig
 `VIRTUAL AT addr` -> Start a new virtual code section and set it's code origin to addr.
 `END VIRTUAL` -> End a virtual code section.
 
+
 # BASM preprocessors:
 Any numeric expression can contain a preprocessor.
 These words must start with the 'pi' character.
@@ -131,10 +132,21 @@ Ex. `1 + πPUSH 1` -> push 1 to the stack, add 1+1, return 2.
 Ex. `1 + πPOP` -> pop the stack and add 1, return the result.
 
 These can be useful for setting and restoring the `ORIGIN` variable.
-Ex. `ORIGIN 0` -> push the current origin, set the origin to 0.
+Ex. `ORIGIN πPUSH 0` -> push the current origin, set the origin to 0.
     `//some code`
     `ORIGIN πPOP` -> pop the stack to set the origin to what it was before.
 
 `πECHO` -> Print the following numeric value
 `πPUTS` -> Print the following string value
+
+
+# Opcode prefixes
+There are four opcode prefixes that can be used in BASM at this moment.
+They are usually called suffixes, but I couldn't get that kind of syntax to work.
+In BASM the opcode prefixes can be used on a line alone, or they can be put before the opcode.
+Either way, the next opcode will be affected by the prefix.
+`SIS`, `SIL`, `LIS`, and `LIL` are the four supported prefixes.
+ex:
+`lis add hl,hl` assembles to $49,$29.
+
 
