@@ -25,10 +25,11 @@
 #define max(a,b) a>b?a:b
 #define isAlphaNumeric(c) ((unsigned)(c-0x41)<26||(unsigned)(c-0x30)<10||c=='.')
 
-#define SIZEOF_INCLUDE_ENTRY 14
+#define SIZEOF_INCLUDE_ENTRY 17
 typedef struct __include_entry_t {
 	char fname[8];
 	char *namespace;
+	void *ptr;
 	void *next;
 } include_entry_t;
 
@@ -89,12 +90,12 @@ void defineGoto(void *val,int offset);
 void UpdateWordStack(void);
 uint8_t *getEmitData(const char *name);
 uint8_t *checkIncludes(const char *name);
-uint8_t *searchIncludeFile(const char *fname, const char *cname);
+uint8_t *searchIncludeFile(void *data_ptr, const char *cname);
 bool includeFile(const char *fname,const char *namespace);
 
 void error(const char *str,const char *word);
-void printAt(const char *str,uint8_t x,uint8_t y);
-void printXAt(const char *str,int amt,uint8_t x,uint8_t y);
+char *printAt(const char *str,uint8_t x,uint8_t y);
+char *printXAt(const char *str,int amt,uint8_t x,uint8_t y);
 char *upperCaseStr(char *str);
 sk_key_t pause(void);
 void stack_push(int val);
@@ -139,6 +140,9 @@ void main(void){
 					if (assemble(&inFile,&outFile)){
 						if (outFile[0]&&outFile[9]){
 							fp2 = ti_OpenVar(TEMP_FILE,"r",TI_TPRGM_TYPE);
+							if (outFile[10]&2 && outFile[9]==TI_PPRGM_TYPE){
+								outFile[9]=TI_PRGM_TYPE; //make it a non-protected program if it's a hexdump
+							}
 							fp = ti_OpenVar(&outFile,"w",outFile[9]);
 							OutputWriteFunction(ti_GetDataPtr(fp2),O_FILE_SIZE,1,fp);
 							if (outFile[10]&1){
@@ -235,9 +239,9 @@ int main_postprocessor(ti_var_t fp){
 				}
 			}
 		}
-		if (ErrorCode) break;
+		if (ErrorCode) return 0;
 	}
-	return !(int)ErrorCode;
+	return 1;
 }
 
 int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var_t fp){
@@ -323,6 +327,8 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 										line+=len+1;
 									} else if (!strncmp(line,"HEXDUMP",7)){
 										OutputWriteFunction = _writeHexNibbles;
+										outFile[10]|=2;
+										line+=7;
 									} else {
 										ErrorCode = "Invalid format directive";
 										ErrorWord = line;
@@ -592,6 +598,7 @@ int getLabelValue(label_t *lbl){ //get the value of a label
 		void *ptr = (void*)lbl->value;
 		return getNumber(&ptr,lbl,0); //return the computed value
 	}
+	ErrorCode=0;
 	return lbl->value; //it's just a plain value
 }
 
@@ -656,16 +663,16 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 						label_t *lbl;
 						defineGoto(data,i); //we need to set this address eventually if it's undefined.
 						val=getLabelValue(lbl=&WORD_STACK[WORD_SP]);
-						if (ErrorCode==UndefinedLabelError){
-							ErrorCode=0;
-						} else {
-							if (lbl->bytes&F_OFFSET_VALUE){
-								val+=ORIGIN+1;
-							}
-							memcpy(buf4+i+1,&val,CURRENT_BYTES&M_NUM_BYTES);
-							WORD_SP--;
-							ti_Seek(SIZEOF_LABEL_T,SEEK_END,gfp); //basically forget about this goto, it's been taken care of.
-						}
+						//if (ErrorCode==UndefinedLabelError){ //probably don't need this
+							//ErrorCode=0;
+						//} else {
+							//if (lbl->bytes&F_OFFSET_VALUE){
+								//val+=ORIGIN+1;
+							//}
+							//memcpy(buf4+i+1,&val,CURRENT_BYTES&M_NUM_BYTES);
+							//WORD_SP--;
+							//ti_Seek(SIZEOF_LABEL_T,SEEK_END,gfp); //basically forget about this goto, it's been taken care of.
+						//}
 					}
 					return buf4;
 				} else {
@@ -681,56 +688,46 @@ uint8_t *getEmitData(const char *name){ //data to write to the file during assem
 	return 0;
 }
 
-uint8_t *searchIncludeFile(const char *fname, const char *cname){
+uint8_t *searchIncludeFile(void *data_ptr, const char *cname){
 	ti_var_t fp;
 	uint8_t *ptr;
 	uint8_t *org;
-	uint8_t i;
 	ErrorCode=0;
-	if (fp = ti_Open(fname,"r")){
-		ptr = org = ti_GetDataPtr(fp);
-		ti_Close(fp);
-		if (!strcmp(ptr,"BASM3.0 INC")){ //check if it's a valid include file
-			i = cname[0]-0x41;
-			ptr+=*((uint16_t*)(ptr+32+(i<<1))); //get the pointer to the list of constants starting with the first letter
-			while (*ptr){
-				int total_len;
-				uint8_t *next=ptr+strlen(ptr)+1;
-				if (!strcmp(ptr,cname)){ //found it!
-					if (*next){ //return the value
-						return next;
-					} else { //this is a special kind of include definition; is inserts code.
-						//instead of just returning the data, we have to process it a bit.
-						//the first two bytes must be null for this kind of definition.
-						//the next two bytes are the total length of the entry.
-						//the next two bytes are the length of the relocations table.
-						void *data;
-						uint8_t sbuf[26];
-						int code_len,relo_len;
-						total_len = *((uint16_t*)(next+2));
-						relo_len = *((uint16_t*)(next+4));
-						code_len = total_len-(relo_len+6);
-						if (data=malloc(code_len+3)){
-							uint16_t *relo_tbl=(uint16_t*)(next+6);
-							memcpy(data+3,next+relo_len+3,code_len); //write the code
-							while (relo_len-=2){ //add the new offset to all the specified jumps
-								(*(int*)(data+3+(*relo_tbl++)))+=ORIGIN;
-							}
-							*((int*)data)=code_len<<8;
-							return (uint8_t*)data;
-						} else {
-							ErrorCode=MemoryError;
-							return 0;
-						}
+	ptr = org = data_ptr;
+	ptr+=*((uint16_t*)(ptr+32+((cname[0]-0x41)<<1))); //get the pointer to the list of constants starting with the first letter
+	while (*ptr){
+		int total_len;
+		uint8_t *next=ptr+strlen(ptr)+1;
+		if (!strcmp(ptr,cname)){ //found it!
+			if (*next){ //return the value
+				return next;
+			} else { //this is a special kind of include definition; is inserts code.
+				//instead of just returning the data, we have to process it a bit.
+				//the first two bytes must be null for this kind of definition.
+				//the next two bytes are the total length of the entry.
+				//the next two bytes are the length of the relocations table.
+				void *data;
+				int code_len,relo_len;
+				total_len = *((uint16_t*)(next+2));
+				relo_len = *((uint16_t*)(next+4));
+				code_len = total_len-(relo_len+6);
+				if (data=malloc(code_len+3)){
+					uint16_t *relo_tbl=(uint16_t*)(next+6);
+					memcpy(data+3,next+relo_len+3,code_len); //write the code
+					while (relo_len-=2){ //add the new offset to all the specified jumps
+						(*(int*)(data+3+(*relo_tbl++)))+=ORIGIN;
 					}
+					*((int*)data)=code_len<<8;
+					return (uint8_t*)data;
+				} else {
+					ErrorCode=MemoryError;
+					return 0;
 				}
-				//continue searching
-				if (!(total_len=*next)) total_len=*((uint16_t*)(next+2))+1;
-				ptr=next+total_len+1;
 			}
-		} else {
-			ErrorCode = "Malformed include file";
 		}
+		//continue searching
+		if (!(total_len=*next)) total_len=*((uint16_t*)(next+2))+1;
+		ptr=next+total_len+1;
 	}
 	return 0; //nothing found
 }
@@ -753,18 +750,17 @@ uint8_t *checkIncludes(const char *name){
 			cname = name;
 		} else {
 			int len = strlen(ent->namespace);
-			if (!strncmp(name,ent->namespace,len)){
+			if (!strncmp(name,ent->namespace,len)){ //check the prefix
 				i = 1;
 				cname = name+len;
 			}
 		}
-		if (i){
-			if (rv=searchIncludeFile(&ent->fname,cname)){
-				return rv;
+		if (i){ //if the prefix is correct or there isn't a prefix
+			if (rv=searchIncludeFile(ent->ptr,cname)){
+				return rv; //return the value if it's non-zero
 			}
 		}
-		ent=ent->next;
-	} while (ent->next);
+	} while (ent=ent->next); //next include entry
 	ErrorWord = name;
 	return 0;
 }
@@ -772,10 +768,16 @@ uint8_t *checkIncludes(const char *name){
 bool includeFile(const char *fname,const char *namespace){
 	ti_var_t fp;
 	include_entry_t *ent;
+	void *ptr;
 	if (fp=ti_Open(fname,"r")){
+		ptr=ti_GetDataPtr(fp);
 		ti_Close(fp);
 	} else {
 		ErrorCode = "Include appvar not found";
+		return 0;
+	}
+	if (strcmp(ptr,"BASM3.0 INC")){
+		ErrorCode = "Malformed include file";
 		return 0;
 	}
 
@@ -786,7 +788,9 @@ bool includeFile(const char *fname,const char *namespace){
 
 	memcpy(&last_include->fname,fname,8);
 	last_include->namespace = namespace;
-	last_include = last_include->next = ent;
+	last_include->ptr = ptr;
+	last_include->next = ent;
+	last_include = ent;
 	ent->next = 0;
 	return 1;
 }
@@ -805,19 +809,21 @@ void error(const char *str,const char *word){
 	}
 }
 
-void printAt(const char *str,uint8_t x,uint8_t y){
+char *printAt(const char *str,uint8_t x,uint8_t y){
 	os_SetCursorPos(y,x);
 	if (strlen(str)){
 		os_PutStrFull(str);
 	}
+	return str;
 }
 
-void printXAt(const char *str,int amt,uint8_t x,uint8_t y){
+char *printXAt(const char *str,int amt,uint8_t x,uint8_t y){
 	char *s = (char*)malloc(amt+1);
 	memcpy(s,str,amt);
 	s[amt] = 0;
 	printAt(s,x,y);
 	free(s);
+	return str;
 }
 
 char *upperCaseStr(char *str){
@@ -856,7 +862,7 @@ int _writeHexNibbles(void *data,int len,int count,ti_var_t fp){
 		uint8_t c = *dataptr++;
 		ti_PutC(HEX_CHARS[c>>4],fp);
 		ti_PutC(HEX_CHARS[c&0xF],fp);
-		if (!(i&0x7)) ti_PutC(0x3F,fp);
+		if ((i&7)==7) ti_PutC(0x3F,fp);
 	}
 	return total;
 }

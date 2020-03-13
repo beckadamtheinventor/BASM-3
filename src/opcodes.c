@@ -332,6 +332,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 	bool neg=0;
 	number = 0;
 	ErrorWord=*line;
+	ErrorCode=0;
 	if ((c=**line)==0x1A||c=='-'){
 		neg=1; (*line)++;
 	}
@@ -365,7 +366,7 @@ int getNumberNoMath(char **line,uint8_t *base){
 			} else {
 				if (data=checkIncludes(nbuf)){
 					if (*data){
-						number = *((int*)(data+1));
+						memcpy(&number,data+1,*data);
 					}
 				} else if (gt=findLabel(nbuf)){
 					number = getLabelValue(gt);
@@ -442,8 +443,8 @@ int getNumberNoMath(char **line,uint8_t *base){
 			}
 		}
 		(*line)--;
+		if (neg) number = -number;
 	}
-	if (neg) number = -number;
 	return number;
 }
 

@@ -86,6 +86,7 @@ with open("obj/"+fname+".bin","wb") as f:
 					break
 				else:
 					a+=1
+			if not a: a=1
 			f.write(bytes([0,a]+arg[:a]))
 		f.write(bytes([0]))
 
