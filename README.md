@@ -116,11 +116,15 @@ All labels, words, and opcodes are case-insensitive for the time being, this mig
 
 # BASM code control:
 `SECTION` -> starts a new code section. This allows the current code execution address to advance as the code is written to the output.
-`SECTION AT addr` -> start a new code section and set it's code origin to addr.
+`SECTION AT addr` -> start a new code section and set it's code origin to `addr`.
 `END SECTION` -> End a code section.
 `VIRTUAL` -> start a new virtual code section. This does not affect the current code execution address as this code is written to the file. Useful for stubs that can be copied into their execution base address at runtime.
-`VIRTUAL AT addr` -> Start a new virtual code section and set it's code origin to addr.
+`VIRTUAL AT addr` -> Start a new virtual code section and set it's code origin to `addr`.
 `END VIRTUAL` -> End a virtual code section.
+`REPEAT n` -> Repeat a block of code `n` times
+`END REPEAT` -> End a repeating block of code
+`RESERVE n` -> Reserve `n` bytes for a block of code if that block of code is smaller than `n` bytes. This pads the remaining space with zeroes.
+`END RESERVE` -> End a reserved block
 
 
 # BASM preprocessors:

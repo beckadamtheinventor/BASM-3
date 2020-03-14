@@ -42,6 +42,7 @@ const char *UndefinedLabelError = "Undefined word/label";
 const char *NumberFormatError = "Number format Error";
 const char *SyntaxError = "Syntax Error";
 const char *NamespaceError = "No namespace";
+const char *VariableError = "Argument cannot be variable";
 const char *UserBreakError = "Cancel. Abort.";
 const char *UserBreakWord = "\\o/";
 const char *HEX_CHARS = "0123456789ABCDEF";
@@ -319,7 +320,7 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 										outFile[9]=TI_PPRGM_TYPE;
 										line+=4;
 									} else if (!strncmp(line,"ARCHIVED",8)){
-										outFile[10]|=1;
+										outFile[10]|=1; //make the output archived
 										line+=8;
 									} else if (*line=='"'){
 										int len = 0;
@@ -350,6 +351,40 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 									}
 								} while (*line++);
 								if (ErrorCode) break;
+							} else if (!strncmp(&buf,"REPEAT ",7)){
+								int num;
+								line = &buf[7];
+								num = getNumber(&line,0,0);
+								if (!num){
+									ErrorCode = "Repeat requires non-zero arg";
+									break;
+								} else if (ErrorCode==UndefinedLabelError){
+									ErrorCode = VariableError;
+									break;
+								}
+								while (num--){
+									void *save_ptr = *ptr;
+									main_assembler(ptr,max,"END REPEAT",outFile,fp);
+									if (num) *ptr = save_ptr;
+								}
+							} else if (!strncmp(&buf,"RESERVE ",8)){
+								int num,save_ptr;
+								line = &buf[7];
+								num = getNumber(&line,0,0);
+								if (!num){
+									ErrorCode = "Repeat requires non-zero arg";
+									break;
+								} else if (ErrorCode==UndefinedLabelError){
+									ErrorCode = VariableError;
+									break;
+								}
+								save_ptr = ORIGIN+num;
+								main_assembler(ptr,max,"END RESERVE",outFile,fp);
+								if (ORIGIN < save_ptr){
+									ti_Write((void*)0xFF0000,save_ptr-ORIGIN,1,fp);
+								} else if (ORIGIN > save_ptr){
+									ErrorCode = "Reserve content > reserve bytes";
+								}
 							} else if (!strncmp(&buf,"ORIGIN ",7)){
 								line = &buf[7];
 								ORIGIN=getNumber(&line,0,0);
