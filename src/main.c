@@ -224,7 +224,7 @@ int main_postprocessor(ti_var_t fp){
 			int val = getLabelValue(gt); //get the goto's value
 			if (!ErrorCode){
 				if (gt->bytes&F_OFFSET_VALUE){
-					val -= gt->org; //calculate the JR offset byte
+					val -= (gt->org + 1); //calculate the JR offset byte
 					if ((unsigned)(val+0x80)>0xFF) ErrorCode = "JR offset out of range";
 				}
 				ti_Seek(gt->offset,SEEK_SET,fp); //seek to the file offset where the data needs to go
@@ -265,6 +265,7 @@ int main_assembler(uint8_t **ptr,uint8_t *max,char *endcode,char *outFile,ti_var
 			*ptr=readTokens(&buf,511,*ptr,max);
 			removeLeadingSpaces(&buf);
 			if (*buf){
+				ErrorWord=&buf;
 				if ((unsigned)(buf[0]-0x61)<26) buf[0]-=0x20;
 				if ((unsigned)(buf[1]-0x61)<26) buf[1]-=0x20;
 				if (!strncmp(&buf,"DB ",3)){
